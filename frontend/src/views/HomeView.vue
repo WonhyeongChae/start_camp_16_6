@@ -3,6 +3,10 @@
     <travel-test-modal
       v-model:show="showTestModal"
       @submit-result="handleTestResult"
+      @update:show="val => {
+        if (!val) handleModalClose()
+        showTestModal = val
+      }"
     />
 
     <div v-if="!showTestModal" class="home-body">
@@ -81,24 +85,39 @@ import TravelTestModal from '../components/TravelTestModal.vue'
 import { recommendedPlaces, categoryButtons, recentPosts } from '../data/homeMockData'
 
 const STORAGE_KEY = 'localhub-travel-test-result'
+const SESSION_KEY = 'localhub-travel-test-modal-seen'
 const router = useRouter()
+
 const testResult = ref(loadSavedResult())
-const showTestModal = ref(!testResult.value)
+const showTestModal = ref(shouldShowModal())
 
 function loadSavedResult() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = sessionStorage.getItem(STORAGE_KEY)
     return raw ? JSON.parse(raw) : null
   } catch {
     return null
   }
 }
 
+function shouldShowModal() {
+  const sessionSeen = sessionStorage.getItem(SESSION_KEY)
+  return !sessionSeen && !testResult.value
+}
+
 function saveTestResult(payload) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
   } catch {
-    // localStorage가 없는 환경에서는 무시
+    // sessionStorage가 없는 환경에서는 무시
+  }
+}
+
+function markModalSeen() {
+  try {
+    sessionStorage.setItem(SESSION_KEY, 'true')
+  } catch {
+    // sessionStorage가 없는 환경에서는 무시
   }
 }
 
@@ -111,6 +130,12 @@ function handleTestResult(payload) {
 
   testResult.value = result
   saveTestResult(result)
+  markModalSeen()
+  showTestModal.value = false
+}
+
+function handleModalClose() {
+  markModalSeen()
   showTestModal.value = false
 }
 
