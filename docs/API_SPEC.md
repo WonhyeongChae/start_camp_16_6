@@ -152,10 +152,10 @@ The original TourAPI JSON is read-only. Derived fields such as `region` and `tag
 
 | Code | Display name | Base keywords |
 |---|---|---|
-| `HEALING` | 여유로운 힐링형 | 자연, 산책, 휴식, 조용함 |
-| `EXPLORER` | 에너지 탐험형 | 레포츠, 체험, 야외, 활동 |
-| `CULTURE` | 감성 문화형 | 사진, 전시, 역사, 문화 |
-| `FOODIE` | 먹거리 수집형 | 음식점, 시장, 축제, 특산물 |
+| `HEALING` | 고요한 쉼표 수집가 | 자연, 산책, 휴식, 조용함 |
+| `EXPLORER` | 에너지 만렙 탐험가 | 레포츠, 체험, 야외, 활동 |
+| `CULTURE` | 이야기를 좇는 시간여행자 | 문화, 역사, 전시, 사진 |
+| `FOODIE` | 한입에 담는 로컬 미식가 | 음식점, 시장, 축제, 특산물 |
 
 ## 3. Post APIs
 
@@ -294,6 +294,41 @@ Chat grounding rules:
 
 ## 6. Travel test API
 
+### GET `/api/travel-test/questions`
+
+Returns the public travel-test question set. Scoring fields and type-selection metadata are backend-only and must not be included in this response.
+
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "version": "1.0",
+    "requiredAnswerCount": 5,
+    "questions": [
+      {
+        "questionId": 1,
+        "question": "여행을 떠났을 때 가장 기대되는 순간은?",
+        "options": [
+          {
+            "optionId": "Q1_A",
+            "text": "자연 속에서 아무 생각 없이 여유롭게 쉬는 순간"
+          }
+        ]
+      }
+    ]
+  },
+  "message": "여행 취향 질문을 조회했습니다."
+}
+```
+
+Question response rules:
+
+1. Read the source question set from `data/derived/travel_test_questions.json`.
+2. Return `questionId`, question text, `optionId`, and option text only, together with the public version and required answer count.
+3. Never return `scores`, `primaryType`, `tieBreakQuestionOrder`, or `fallbackTypeOrder` to the browser.
+
 ### POST `/api/travel-test`
 
 Request:
@@ -320,8 +355,8 @@ Response:
   "data": {
     "travelType": {
       "code": "HEALING",
-      "name": "여유로운 힐링형",
-      "description": "복잡한 일정보다 자연 속에서 천천히 머무는 여행을 선호하는 유형입니다.",
+      "name": "고요한 쉼표 수집가",
+      "description": "바쁘게 움직이는 것보다 한 장소에서 천천히 머무는 시간을 좋아하는 여행자예요. 자연을 감상하거나 조용한 길을 걸으며 여행 속 여유를 발견해요.",
       "keywords": ["자연", "산책", "휴식", "조용함"]
     },
     "recommendations": [
@@ -345,9 +380,10 @@ Recommendation rules:
 
 1. Use deterministic score calculation for the travel type and ranking.
 2. Sort by `matchScore` descending and return up to three places.
-3. OpenAI may phrase `description` and `reason`, but must not select or rank places.
-4. If OpenAI fails, use a template: `선호 키워드인 {keywords}와 잘 맞는 장소입니다.`
-5. Tags generated from sparse source metadata must be reviewed by a team member.
+3. Return the fixed user-facing `name` and `description` defined for the selected type; OpenAI must not select, rename, or rewrite the travel type.
+4. OpenAI may phrase only `recommendations[].reason` from grounded place data.
+5. If OpenAI fails, use a template: `선호 키워드인 {keywords}와 잘 맞는 장소입니다.`
+6. Tags generated from sparse source metadata must be reviewed by a team member.
 
 ## 7. Festival API
 

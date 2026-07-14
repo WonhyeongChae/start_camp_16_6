@@ -1,255 +1,175 @@
-<template>
-  <section class="home-page">
-    <travel-test-modal
-      v-model:show="showTestModal"
-      @submit-result="handleTestResult"
-      @update:show="val => {
-        if (!val) handleModalClose()
-        showTestModal = val
-      }"
-    />
-
-    <div v-if="!showTestModal" class="home-body">
-      <header class="home-header">
-        <h1>LocalHub Home</h1>
-        <p class="subtitle">
-          {{ testResultText }}
-        </p>
-      </header>
-
-      <section class="result-area">
-        <div class="section-title">
-          <h2>추천 장소</h2>
-          <p>당신의 여행 유형에 맞춘 추천 장소입니다.</p>
-        </div>
-        <div class="horizontal-scroll">
-          <article
-            v-for="place in recommendedPlaces"
-            :key="place.contentId"
-            class="place-card"
-          >
-            <div class="place-image">
-              <img :src="place.thumbnailUrl" :alt="place.title" />
-            </div>
-            <div class="place-meta">
-              <strong>{{ place.title }}</strong>
-              <span>{{ place.region }}</span>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section class="category-area">
-        <div class="section-title">
-          <h2>카테고리</h2>
-          <p>원하는 스타일의 여행지를 빠르게 찾아보세요.</p>
-        </div>
-        <div class="category-grid">
-          <button
-            v-for="category in categoryButtons"
-            :key="category.id"
-            type="button"
-            class="category-button"
-            @click="selectCategory(category.id)"
-          >
-            <span class="category-icon">{{ category.icon }}</span>
-            <span>{{ category.label }}</span>
-          </button>
-        </div>
-      </section>
-
-      <section class="community-area">
-        <div class="section-title">
-          <h2>커뮤니티 최신 게시글</h2>
-          <p>최근에 올라온 질문과 후기입니다.</p>
-        </div>
-        <ul class="post-list">
-          <li v-for="post in recentPosts" :key="post.id" class="post-item">
-            <h3>{{ post.title }}</h3>
-            <div class="post-meta">
-              <span>{{ post.category }}</span>
-              <span>{{ post.date }}</span>
-            </div>
-            <p>{{ post.excerpt }}</p>
-          </li>
-        </ul>
-      </section>
-    </div>
-  </section>
-</template>
-
 <script setup>
-import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
+
+import ChatButton from '../components/ChatButton.vue'
+import CommunityPanel from '../components/CommunityPanel.vue'
+import FestivalPanel from '../components/FestivalPanel.vue'
+import PlaceCard from '../components/PlaceCard.vue'
+import SiteFooter from '../components/SiteFooter.vue'
 import TravelTestModal from '../components/TravelTestModal.vue'
-import { recommendedPlaces, categoryButtons, recentPosts } from '../data/homeMockData'
+import TypeCard from '../components/TypeCard.vue'
+import { festivals, heroImages, places, posts, travelTypes } from '../data/homeMock'
 
-const STORAGE_KEY = 'localhub-travel-test-result'
-const SESSION_KEY = 'localhub-travel-test-modal-seen'
-const router = useRouter()
+const RESULT_KEY = 'localhub-travel-type'
+const ONBOARDING_KEY = 'localhub-onboarding-seen'
+const showTravelTest = ref(false)
+const hasResult = ref(false)
+const resultCode = ref('HEALING')
 
-const testResult = ref(loadSavedResult())
-const showTestModal = ref(shouldShowModal())
+const resultType = computed(() => travelTypes.find((type) => type.code === resultCode.value) || travelTypes[0])
 
-function loadSavedResult() {
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : null
-  } catch {
-    return null
+onMounted(() => {
+  const savedType = sessionStorage.getItem(RESULT_KEY)
+  const onboardingSeen = sessionStorage.getItem(ONBOARDING_KEY) === 'true'
+  if (savedType) {
+    resultCode.value = savedType
+    hasResult.value = true
   }
-}
-
-function shouldShowModal() {
-  const sessionSeen = sessionStorage.getItem(SESSION_KEY)
-  return !sessionSeen && !testResult.value
-}
-
-function saveTestResult(payload) {
-  try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
-  } catch {
-    // sessionStorage가 없는 환경에서는 무시
-  }
-}
-
-function markModalSeen() {
-  try {
-    sessionStorage.setItem(SESSION_KEY, 'true')
-  } catch {
-    // sessionStorage가 없는 환경에서는 무시
-  }
-}
-
-function handleTestResult(payload) {
-  const result = {
-    code: payload.code,
-    name: payload.name,
-    description: payload.description || ''
-  }
-
-  testResult.value = result
-  saveTestResult(result)
-  markModalSeen()
-  showTestModal.value = false
-}
-
-function handleModalClose() {
-  markModalSeen()
-  showTestModal.value = false
-}
-
-const testResultText = computed(() => {
-  if (!testResult.value) {
-    return '여행 유형 테스트 결과를 기다리고 있습니다.'
-  }
-  return `당신의 여행 유형은 ${testResult.value.name}입니다. 추천 장소를 확인해보세요.`
+  showTravelTest.value = !onboardingSeen
 })
 
-function selectCategory(categoryId) {
-  router.push({ path: '/places', query: { category: categoryId } })
+function openTravelTest() {
+  showTravelTest.value = true
+}
+
+function skipTravelTest() {
+  sessionStorage.setItem(ONBOARDING_KEY, 'true')
+  showTravelTest.value = false
+}
+
+// 화면 구성 확인용 완료 처리입니다. 실제 연동에서는 answers를 POST /api/travel-test로 전송합니다.
+function completeTravelTest(_answers) {
+  resultCode.value = 'HEALING'
+  hasResult.value = true
+  showTravelTest.value = false
+  sessionStorage.setItem(ONBOARDING_KEY, 'true')
+  sessionStorage.setItem(RESULT_KEY, resultCode.value)
+}
+
+function previewType(code) {
+  resultCode.value = code
+  hasResult.value = true
 }
 </script>
 
+<template>
+  <div class="page-shell">
+    <main>
+      <section class="hero container">
+        <div class="hero-copy">
+          <span class="hero-kicker">GUMI · GYEONGBUK LOCAL TRAVEL</span>
+          <h1>내 취향으로 발견하는<br /><em>구미·경북</em> 여행</h1>
+          <p>몇 가지 질문만으로 당신에게 딱 맞는<br />구미·경북 여행지를 추천해드려요.</p>
+          <div class="hero-actions">
+            <button class="btn btn--primary" type="button" @click="openTravelTest">
+              {{ hasResult ? '취향 테스트 다시 하기' : '여행 취향 테스트 시작' }} <span>›</span>
+            </button>
+            <router-link class="btn btn--outline" to="/places">지역 먼저 둘러보기 <span>›</span></router-link>
+          </div>
+        </div>
+
+        <div class="hero-gallery" aria-label="구미·경북 추천 여행지 미리보기">
+          <div class="route-line" aria-hidden="true"></div>
+          <div v-for="(image, index) in heroImages" :key="image.src" class="hero-image" :class="`image-${index + 1}`">
+            <img :src="image.src" :alt="image.alt" />
+          </div>
+          <div class="result-badge">
+            <span class="result-icon" aria-hidden="true">{{ resultType.icon }}</span>
+            <span><small>당신의 여행 성향은</small><strong>{{ resultType.name }}</strong></span>
+            <b aria-hidden="true">✦</b>
+          </div>
+        </div>
+      </section>
+
+      <section class="type-grid container" aria-label="여행 취향 유형">
+        <TypeCard v-for="type in travelTypes" :key="type.code" :type="type" @select="previewType" />
+      </section>
+
+      <section class="dashboard container">
+        <div class="recommendations">
+          <header class="section-header">
+            <div>
+              <h2 v-if="hasResult"><em>'{{ resultType.name }}'</em>인 당신을 위한 지역 추천</h2>
+              <h2 v-else>당신을 위한 지역 추천</h2>
+              <p v-if="hasResult">자연 · 휴식 · 조용함 키워드를 바탕으로 골랐어요</p>
+              <p v-else>취향 테스트를 완료하면 더 잘 맞는 여행지를 보여드려요</p>
+            </div>
+            <router-link to="/places">더보기 <span>›</span></router-link>
+          </header>
+          <div class="place-grid"><PlaceCard v-for="place in places" :key="place.contentId" :place="place" /></div>
+        </div>
+
+        <FestivalPanel :festivals="festivals" />
+        <CommunityPanel :posts="posts" />
+      </section>
+    </main>
+
+    <SiteFooter />
+    <ChatButton />
+    <TravelTestModal v-if="showTravelTest" @complete="completeTravelTest" @skip="skipTravelTest" />
+  </div>
+</template>
+
 <style scoped>
-.home-page {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+.page-shell { min-height: 100vh; overflow: hidden; }
+.hero { min-height: 345px; display: grid; grid-template-columns: .86fr 1.14fr; align-items: center; gap: 52px; padding-top: 30px; padding-bottom: 26px; }
+.hero-kicker { display: inline-block; margin-bottom: 13px; color: var(--green-700); font-size: 11px; font-weight: 850; letter-spacing: 1.8px; }
+.hero-copy h1 { margin: 0; color: var(--navy); font-size: clamp(43px, 4.15vw, 64px); line-height: 1.18; letter-spacing: -2.8px; }
+.hero-copy h1 em { color: var(--green-900); font-style: normal; }
+.hero-copy p { margin: 22px 0; color: #56605b; font-size: 16px; line-height: 1.65; }
+.hero-actions { display: flex; gap: 16px; }
+.hero-actions span { font-size: 24px; font-weight: 300; line-height: 1; }
+.hero-gallery { position: relative; height: 300px; display: grid; grid-template-columns: 1.05fr 1.1fr 1fr; align-items: center; gap: 10px; }
+.hero-image { position: relative; z-index: 1; overflow: hidden; height: 276px; border: 5px solid #fff; border-radius: 24px; box-shadow: 0 8px 24px rgba(22,50,35,.11); }
+.hero-image.image-2 { height: 300px; }
+.hero-image img { width: 100%; height: 100%; object-fit: cover; }
+.route-line { position: absolute; z-index: 0; left: -70px; right: -55px; bottom: 38px; height: 90px; border: 2px dashed rgba(137, 174, 88, .58); border-left-color: transparent; border-bottom-color: transparent; border-radius: 50%; transform: rotate(-8deg); }
+.result-badge { position: absolute; z-index: 2; left: 34%; bottom: -10px; min-width: 310px; min-height: 92px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; padding: 15px 18px; background: rgba(255,255,255,.96); border-radius: 22px; box-shadow: 0 14px 32px rgba(26,53,38,.12); }
+.result-icon { width: 58px; height: 58px; display: grid; place-items: center; background: #e4f1d7; border-radius: 50%; font-size: 29px; }
+.result-badge span:nth-child(2) { display: flex; flex-direction: column; gap: 2px; }
+.result-badge small { color: #727975; font-size: 11px; }
+.result-badge strong { font-size: 20px; white-space: nowrap; }
+.result-badge b { align-self: start; color: #ff8b38; font-size: 22px; }
+.type-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; padding-top: 15px; padding-bottom: 18px; }
+.dashboard { display: grid; grid-template-columns: 1.55fr .65fr .68fr; gap: 14px; padding-bottom: 30px; }
+.recommendations { min-width: 0; }
+.section-header { min-height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.section-header h2 { margin: 0; font-size: 22px; letter-spacing: -.6px; }
+.section-header h2::before { content: '●'; margin-right: 10px; color: var(--green-800); font-size: 17px; }
+.section-header h2 em { color: var(--green-900); font-style: normal; }
+.section-header p { margin: 5px 0 0 27px; color: #6d7470; font-size: 12px; }
+.section-header a { color: #5d6661; font-size: 12px; white-space: nowrap; }
+.place-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 13px; }
+@media (max-width: 1180px) {
+  .hero { grid-template-columns: .9fr 1.1fr; gap: 25px; }
+  .result-badge { left: 24%; }
+  .type-grid { grid-template-columns: repeat(2, 1fr); }
+  .dashboard { grid-template-columns: 1fr 1fr; }
+  .recommendations { grid-column: 1 / -1; }
 }
-.home-body {
-  padding: 20px;
-  overflow-y: auto;
+@media (max-width: 900px) {
+  .hero { grid-template-columns: 1fr; padding-top: 50px; }
+  .hero-copy { text-align: center; }
+  .hero-actions { justify-content: center; }
+  .hero-gallery { margin-top: 10px; }
 }
-.home-header {
-  margin-bottom: 24px;
+@media (max-width: 700px) {
+  .hero-gallery { height: 245px; gap: 5px; }
+  .hero-image, .hero-image.image-2 { height: 220px; border-width: 3px; border-radius: 15px; }
+  .result-badge { left: 50%; bottom: -12px; min-width: 275px; transform: translateX(-50%); }
+  .type-grid, .dashboard { grid-template-columns: 1fr; }
+  .place-grid { grid-template-columns: 1fr; }
+  .recommendations { grid-column: auto; }
 }
-.subtitle {
-  margin-top: 8px;
-  color: #555;
-}
-.section-title h2 {
-  margin: 0;
-  font-size: 1.2rem;
-}
-.section-title p {
-  margin: 4px 0 16px;
-  color: #666;
-}
-.result-area,
-.category-area,
-.community-area {
-  margin-bottom: 32px;
-}
-.horizontal-scroll {
-  display: flex;
-  overflow-x: auto;
-  gap: 16px;
-  padding-bottom: 8px;
-}
-.place-card {
-  min-width: 240px;
-  border: 1px solid #e0e0e0;
-  border-radius: 14px;
-  background: #fff;
-  overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
-}
-.place-image img {
-  width: 100%;
-  height: 140px;
-  object-fit: cover;
-}
-.place-meta {
-  padding: 12px;
-}
-.place-meta strong {
-  display: block;
-  margin-bottom: 8px;
-}
-.place-meta span {
-  color: #777;
-  font-size: 0.95rem;
-}
-.category-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-.category-button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 16px;
-  border: 1px solid #ddd;
-  border-radius: 16px;
-  background: #fff;
-  cursor: pointer;
-}
-.category-icon {
-  font-size: 1.6rem;
-}
-.post-list {
-  display: grid;
-  gap: 14px;
-}
-.post-item {
-  padding: 16px;
-  border: 1px solid #e6e6e6;
-  border-radius: 14px;
-  background: #fff;
-}
-.post-meta {
-  margin: 8px 0 0;
-  display: flex;
-  gap: 12px;
-  color: #999;
-  font-size: 0.9rem;
-}
-.post-item p {
-  margin: 12px 0 0;
-  color: #555;
+@media (max-width: 560px) {
+  .hero { padding-top: 36px; }
+  .hero-copy h1 { font-size: 39px; letter-spacing: -2px; }
+  .hero-actions { flex-direction: column; }
+  .hero-gallery { height: 210px; }
+  .hero-image, .hero-image.image-2 { height: 180px; }
+  .result-badge { min-width: 250px; min-height: 78px; padding: 10px 13px; }
+  .result-icon { width: 48px; height: 48px; font-size: 23px; }
+  .result-badge strong { font-size: 16px; }
+  .section-header h2 { font-size: 19px; }
 }
 </style>
