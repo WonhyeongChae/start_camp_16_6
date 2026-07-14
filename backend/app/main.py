@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import health_router, posts_router
+from app.api.travel_test import router as travel_test_router
 from app.core.config import load_settings
 from app.core.exceptions import register_exception_handlers
 from app.db.base import Base
@@ -36,6 +37,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health_router, prefix="/api")
     app.include_router(posts_router, prefix="/api")
+    app.include_router(travel_test_router, prefix="/api")
     return app
 
 
