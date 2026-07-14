@@ -1,0 +1,98 @@
+{
+  "3032819": {
+    "recommendedTypes": ["HEALING"],
+    "reviewRequired": false
+  },
+  "4068825": {
+    "recommendedTypes": ["HEALING"],
+    "reviewRequired": false
+  },
+  "3035970": {
+    "recommendedTypes": ["HEALING", "EXPLORER"],
+    "reviewRequired": false
+  },
+  "2736676": {
+    "recommendedTypes": ["HEALING"],
+    "reviewRequired": true
+  },
+  "1118427": {
+    "recommendedTypes": ["CULTURE"],
+    "reviewRequired": false
+  },
+  "129739": {
+    "recommendedTypes": ["CULTURE"],
+    "reviewRequired": false
+  },
+  "130097": {
+    "recommendedTypes": ["CULTURE"],
+    "reviewRequired": false
+  },
+  "130025": {
+    "recommendedTypes": ["CULTURE"],
+    "reviewRequired": false
+  },
+  "2732402": {
+    "recommendedTypes": ["CULTURE"],
+    "reviewRequired": false
+  },
+  "2782877": {
+    "recommendedTypes": ["CULTURE"],
+    "reviewRequired": true
+  },
+  "3032798": {
+    "recommendedTypes": ["EXPLORER"],
+    "reviewRequired": false
+  },
+  "3029654": {
+    "recommendedTypes": ["EXPLORER", "HEALING"],
+    "reviewRequired": false
+  },
+  "250478": {
+    "recommendedTypes": ["EXPLORER"],
+    "reviewRequired": false
+  },
+  "2743744": {
+    "recommendedTypes": ["EXPLORER", "HEALING"],
+    "reviewRequired": false
+  },
+  "2772306": {
+    "recommendedTypes": ["EXPLORER"],
+    "reviewRequired": false
+  },
+  "2729222": {
+    "recommendedTypes": ["EXPLORER"],
+    "reviewRequired": false
+  },
+  "522257": {
+    "recommendedTypes": ["FOODIE"],
+    "reviewRequired": false
+  },
+  "2736738": {
+    "recommendedTypes": ["FOODIE"],
+    "reviewRequired": false
+  },
+  "2841027": {
+    "recommendedTypes": ["FOODIE"],
+    "reviewRequired": false
+  },
+  "2841151": {
+    "recommendedTypes": ["FOODIE"],
+    "reviewRequired": false
+  },
+  "2902587": {
+    "recommendedTypes": ["FOODIE"],
+    "reviewRequired": false
+  },
+  "3028462": {
+    "recommendedTypes": ["FOODIE"],
+    "reviewRequired": false
+  },
+  "3017799": {
+    "recommendedTypes": ["FOODIE"],
+    "reviewRequired": false
+  },
+  "3302702": {
+    "recommendedTypes": ["EXPLORER"],
+    "reviewRequired": true
+  }
+}
