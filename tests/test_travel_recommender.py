@@ -1,4 +1,5 @@
 import json
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -17,6 +18,27 @@ class TravelRecommenderTests(unittest.TestCase):
         cls.travel_types = load_travel_types()
         cls.travel_candidates = load_travel_candidates()
         cls.place_tags = json.loads((cls.base_dir / "data/derived/place_tags.json").read_text(encoding="utf-8"))
+
+    def test_travel_types_include_public_result_fields(self):
+        self.assertEqual(set(self.travel_types), {"HEALING", "EXPLORER", "CULTURE", "FOODIE"})
+        for config in self.travel_types.values():
+            self.assertTrue(config["name"])
+            self.assertTrue(config["description"])
+            self.assertTrue(config["keywords"])
+
+    def test_travel_type_without_description_is_rejected(self):
+        invalid = {
+            code: {"name": config["name"], "description": config["description"], "keywords": config["keywords"]}
+            for code, config in self.travel_types.items()
+        }
+        invalid["HEALING"].pop("description")
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "travel_types.json"
+            path.write_text(json.dumps(invalid, ensure_ascii=False), encoding="utf-8")
+            with patch("data.travel_recommender.DERIVED_DIR", Path(directory)):
+                with self.assertRaises(ValueError):
+                    load_travel_types()
 
     def test_recommendations_exist_for_all_travel_types(self):
         for travel_type in ["HEALING", "EXPLORER", "CULTURE", "FOODIE"]:

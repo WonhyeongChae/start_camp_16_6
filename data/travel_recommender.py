@@ -18,16 +18,25 @@ def load_travel_types() -> Dict[str, Dict[str, Any]]:
 
     if not isinstance(data, dict):
         raise ValueError("travel_types.json 구조가 올바르지 않습니다.")
+    if set(data) != VALID_TRAVEL_TYPES:
+        raise ValueError("travel_types.json의 여행 유형 코드가 올바르지 않습니다.")
 
     result: Dict[str, Dict[str, Any]] = {}
     for travel_type, config in data.items():
         if not isinstance(config, dict):
             raise ValueError(f"travel_types.json의 {travel_type} 설정이 올바르지 않습니다.")
+        name = config.get("name")
+        description = config.get("description")
         keywords = config.get("keywords")
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError(f"travel_types.json의 {travel_type} 이름이 올바르지 않습니다.")
+        if not isinstance(description, str) or not description.strip():
+            raise ValueError(f"travel_types.json의 {travel_type} 설명이 올바르지 않습니다.")
         if not isinstance(keywords, list) or not all(isinstance(keyword, str) for keyword in keywords):
             raise ValueError(f"travel_types.json의 {travel_type} 키워드가 올바르지 않습니다.")
         result[str(travel_type)] = {
-            "name": str(config.get("name", "")),
+            "name": name,
+            "description": description,
             "keywords": keywords,
         }
     return result

@@ -10,6 +10,21 @@ if str(ROOT) not in sys.path:
 from app.main import create_app
 
 
+def test_travel_test_questions_hide_scoring_metadata() -> None:
+    with TestClient(create_app()) as client:
+        response = client.get("/api/travel-test/questions")
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["version"] == "1.0"
+    assert data["requiredAnswerCount"] == 5
+    assert len(data["questions"]) == 5
+    option = data["questions"][0]["options"][0]
+    assert set(option) == {"optionId", "text"}
+    assert "scores" not in response.text
+    assert "primaryType" not in response.text
+
+
 def test_places_list_detail_and_not_found() -> None:
     with TestClient(create_app()) as client:
         listing = client.get("/api/places", params={"page": 1, "size": 2, "region": "구미"})
@@ -45,6 +60,7 @@ def test_travel_test_returns_type_and_recommendations() -> None:
         assert response.status_code == 200
         data = response.json()["data"]
         assert data["travelType"]["code"] == "HEALING"
+        assert data["travelType"]["description"]
         assert len(data["recommendations"]) <= 3
         assert all("matchScore" in item for item in data["recommendations"])
 

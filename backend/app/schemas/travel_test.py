@@ -12,6 +12,23 @@ class TravelTestRequest(CamelModel):
     answers: list[TravelAnswer]
 
 
+class TravelTestOption(CamelModel):
+    option_id: str
+    text: str
+
+
+class TravelTestQuestion(CamelModel):
+    question_id: int
+    question: str
+    options: list[TravelTestOption]
+
+
+class TravelTestQuestionsData(CamelModel):
+    version: str
+    required_answer_count: int
+    questions: list[TravelTestQuestion]
+
+
 class TravelType(CamelModel):
     code: str
     name: str
