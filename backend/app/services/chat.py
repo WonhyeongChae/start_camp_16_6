@@ -1,3 +1,4 @@
+import logging
 import re
 
 from openai import OpenAI, OpenAIError
@@ -14,6 +15,8 @@ SYSTEM_PROMPT = """당신은 구미·경북 지역 여행을 돕는 LocalHub 안
 제공된 참고 정보에 근거해 한국어로 간결하고 친절하게 답하세요.
 참고 정보에 없는 가격, 일정, 후기, 편의시설 등을 추측하지 마세요.
 정보가 부족하면 부족하다고 명확히 말하고, 제공된 대화 기록을 고려하세요."""
+
+logger = logging.getLogger(__name__)
 
 
 def _terms(message: str) -> list[str]:
@@ -71,12 +74,31 @@ def create_grounded_answer(db: Session, payload: ChatRequest) -> ChatData:
             model=str(settings["openai_model"]),
             instructions=SYSTEM_PROMPT,
             input=messages,
-            max_output_tokens=600,
+            reasoning={"effort": "minimal"},
+            max_output_tokens=3000,
         )
     except OpenAIServiceError:
         raise
     except OpenAIError as exc:
         raise OpenAIServiceError("OpenAI 응답을 생성하지 못했습니다.") from exc
+
+    incomplete_reason = getattr(response.incomplete_details, "reason", None)
+    usage = getattr(response, "usage", None)
+    output_details = getattr(usage, "output_tokens_details", None)
+    logger.info(
+        "OpenAI response status=%s reason=%s output_tokens=%s reasoning_tokens=%s",
+        response.status,
+        incomplete_reason,
+        getattr(usage, "output_tokens", None),
+        getattr(output_details, "reasoning_tokens", None),
+    )
+
+    if response.status == "incomplete":
+        if incomplete_reason == "max_output_tokens":
+            raise OpenAIServiceError("OpenAI 응답 생성 토큰이 부족합니다.")
+        if incomplete_reason == "content_filter":
+            raise OpenAIServiceError("OpenAI 콘텐츠 필터로 응답이 중단되었습니다.")
+        raise OpenAIServiceError("OpenAI 응답 생성이 완료되지 않았습니다.")
 
     answer = response.output_text.strip()
     if not answer:

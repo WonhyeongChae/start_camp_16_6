@@ -48,7 +48,15 @@ def test_chat_calls_gpt_5_mini_with_place_references(monkeypatch) -> None:
     class FakeResponses:
         def create(self, **kwargs):
             captured.update(kwargs)
-            return SimpleNamespace(output_text="모델이 생성한 여행 답변")
+            return SimpleNamespace(
+                output_text="모델이 생성한 여행 답변",
+                status="completed",
+                incomplete_details=None,
+                usage=SimpleNamespace(
+                    output_tokens=20,
+                    output_tokens_details=SimpleNamespace(reasoning_tokens=5),
+                ),
+            )
 
     class FakeOpenAI:
         def __init__(self, api_key: str):
@@ -76,6 +84,8 @@ def test_chat_calls_gpt_5_mini_with_place_references(monkeypatch) -> None:
         assert data["answer"] == "모델이 생성한 여행 답변"
         assert any(ref["type"] == "place" and ref["id"] == place["contentId"] for ref in data["references"])
         assert captured["model"] == "gpt-5-mini"
+        assert captured["reasoning"] == {"effort": "minimal"}
+        assert captured["max_output_tokens"] == 3000
         assert captured["input"][0] == {"role": "user", "content": "가족 여행이야"}
         assert "참고 정보:" in captured["input"][-1]["content"]
     finally:
@@ -92,6 +102,41 @@ def test_chat_returns_openai_api_error_without_api_key(monkeypatch) -> None:
 
         assert response.status_code == 500
         assert response.json()["error"]["code"] == "OPENAI_API_ERROR"
+    finally:
+        load_settings.cache_clear()
+
+
+def test_chat_reports_output_token_exhaustion(monkeypatch) -> None:
+    class FakeResponses:
+        def create(self, **kwargs):
+            return SimpleNamespace(
+                output_text="",
+                status="incomplete",
+                incomplete_details=SimpleNamespace(reason="max_output_tokens"),
+                usage=SimpleNamespace(
+                    output_tokens=3000,
+                    output_tokens_details=SimpleNamespace(reasoning_tokens=3000),
+                ),
+            )
+
+    class FakeOpenAI:
+        def __init__(self, api_key: str):
+            assert api_key == "test-key"
+            self.responses = FakeResponses()
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(chat_service, "OpenAI", FakeOpenAI)
+    load_settings.cache_clear()
+
+    try:
+        with TestClient(create_app(), raise_server_exceptions=False) as client:
+            response = client.post("/api/chat", json={"message": "가족 축제를 추천해줘", "history": []})
+
+        assert response.status_code == 500
+        assert response.json()["error"] == {
+            "code": "OPENAI_API_ERROR",
+            "detail": "OpenAI 응답 생성 토큰이 부족합니다.",
+        }
     finally:
         load_settings.cache_clear()
 
