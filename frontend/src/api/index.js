@@ -40,10 +40,6 @@ export function fetchPostDetail(postId) {
   return api.get(`/posts/${postId}`).then(res => res.data.data)
 }
 
-export function fetchFestivals(params = {}) {
-  return api.get('/festivals', { params }).then(res => res.data.data)
-}
-
 export function createPost(payload) {
   return api.post('/posts', payload).then(res => res.data.data)
 }
