@@ -22,6 +22,16 @@ export function fetchPlaceDetail(contentId) {
   return api.get(`/places/${contentId}`).then(res => res.data.data)
 }
 
+export function fetchFestivals(params = {}) {
+  return api.get('/festivals', { params }).then(res => res.data.data)
+}
+
+export function fetchFestivalDetail(contentId) {
+  // FullCalendar의 eventClick에서 info.event.id를 넘기면 상세 팝업에 사용할 수 있습니다.
+  // 정제된 30개 축제 날짜는 모두 확정 일정으로 표시합니다.
+  return api.get(`/festivals/${contentId}`).then(res => res.data.data)
+}
+
 export function fetchPosts(params = {}) {
   return api.get('/posts', { params }).then(res => res.data.data)
 }
