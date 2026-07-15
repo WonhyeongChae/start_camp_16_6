@@ -18,11 +18,11 @@
           </div>
           <div>
             <dt>위치</dt>
-            <dd>{{ place.latitude }}, {{ place.longitude }}</dd>
+            <dd>{{ place.latitude ?? '-' }}, {{ place.longitude ?? '-' }}</dd>
           </div>
           <div>
             <dt>태그</dt>
-            <dd>{{ place.tags.join(', ') }}</dd>
+            <dd>{{ (place.tags || []).join(', ') }}</dd>
           </div>
         </dl>
       </template>

@@ -8,17 +8,50 @@ import PlaceCard from '../components/PlaceCard.vue'
 import SiteFooter from '../components/SiteFooter.vue'
 import TravelTestModal from '../components/TravelTestModal.vue'
 import TypeCard from '../components/TypeCard.vue'
-import { festivals, heroImages, places, posts, travelTypes } from '../data/homeMock'
+import { festivals, heroImages, travelTypes } from '../data/homeMock'
+import { fetchPlaces, fetchPosts } from '../api'
 
 const RESULT_KEY = 'localhub-travel-type'
 const ONBOARDING_KEY = 'localhub-onboarding-seen'
 const showTravelTest = ref(false)
 const hasResult = ref(false)
 const resultCode = ref('HEALING')
+const places = ref([])
+const posts = ref([])
 
 const resultType = computed(() => travelTypes.find((type) => type.code === resultCode.value) || travelTypes[0])
 
-onMounted(() => {
+function normalizePlace(place) {
+  const item = place || {}
+
+  return {
+    contentId: item.contentId || item.content_id || item.id || '',
+    imageUrl: item.imageUrl || item.image_url || item.thumbnailUrl || item.thumbnail_url || '',
+    category: item.contentType || item.content_type || '관광지',
+    matchedKeywords: Array.isArray(item.tags) ? item.tags : [],
+    shortTitle: item.title || '',
+    description: item.address || item.detailAddress || item.detail_address || '',
+    title: item.title || '',
+    region: item.region || '',
+    address: item.address || ''
+  }
+}
+
+function normalizePost(post) {
+  const item = post || {}
+
+  return {
+    id: item.id,
+    category: item.category || '여행',
+    title: item.title || '',
+    views: item.viewCount ?? item.view_count ?? 0,
+    time: item.createdAt ? item.createdAt.slice(0, 10) : (item.created_at ? item.created_at.slice(0, 10) : ''),
+    tone: item.category === '맛집' ? 'blue' : item.category === '축제' ? 'purple' : 'green',
+    content: item.content || ''
+  }
+}
+
+onMounted(async () => {
   const savedType = sessionStorage.getItem(RESULT_KEY)
   const onboardingSeen = sessionStorage.getItem(ONBOARDING_KEY) === 'true'
   if (savedType) {
@@ -26,6 +59,22 @@ onMounted(() => {
     hasResult.value = true
   }
   showTravelTest.value = !onboardingSeen
+
+  try {
+    const [placeRes, postRes] = await Promise.all([
+      fetchPlaces({ size: 6 }),
+      fetchPosts({ size: 4 })
+    ])
+
+    const placeItems = placeRes?.items || placeRes || []
+    const postItems = postRes?.items || postRes || []
+
+    places.value = Array.isArray(placeItems) ? placeItems.map(normalizePlace) : []
+    posts.value = Array.isArray(postItems) ? postItems.map(normalizePost) : []
+  } catch (error) {
+    places.value = []
+    posts.value = []
+  }
 })
 
 function openTravelTest() {
@@ -37,7 +86,6 @@ function skipTravelTest() {
   showTravelTest.value = false
 }
 
-// 화면 구성 확인용 완료 처리입니다. 실제 연동에서는 answers를 POST /api/travel-test로 전송합니다.
 function completeTravelTest(_answers) {
   resultCode.value = 'HEALING'
   hasResult.value = true
@@ -96,7 +144,9 @@ function previewType(code) {
             </div>
             <router-link to="/places">더보기 <span>›</span></router-link>
           </header>
-          <div class="place-grid"><PlaceCard v-for="place in places" :key="place.contentId" :place="place" /></div>
+          <div class="place-grid">
+            <PlaceCard v-for="place in places" :key="place.contentId" :place="place" />
+          </div>
         </div>
 
         <FestivalPanel :festivals="festivals" />

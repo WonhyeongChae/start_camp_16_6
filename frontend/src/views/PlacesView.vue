@@ -96,7 +96,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import mockPlaces from '../data/mockPlaces'
+import { fetchPlaces, fetchPlaceDetail } from '../api'
 import PlaceDetailModal from '../components/PlaceDetailModal.vue'
 
 const route = useRoute()
@@ -113,6 +113,23 @@ const typeOptions = [
   { value: '음식점', label: '음식점' },
   { value: '레포츠', label: '레포츠' }
 ]
+
+function normalizePlace(raw) {
+  const item = raw || {}
+
+  return {
+    contentId: item.contentId || item.content_id || '',
+    contentType: item.contentType || item.content_type || '',
+    title: item.title || '',
+    address: item.address || '',
+    detailAddress: item.detailAddress || item.detail_address || '',
+    telephone: item.telephone || '',
+    imageUrl: item.imageUrl || item.image_url || '',
+    thumbnailUrl: item.thumbnailUrl || item.thumbnail_url || '',
+    region: item.region || '',
+    tags: Array.isArray(item.tags) ? item.tags : []
+  }
+}
 
 const uniqueRegions = computed(() => [...new Set(places.value.map((place) => place.region))])
 const uniqueTypes = computed(() => [...new Set(places.value.map((place) => place.contentType))])
@@ -134,14 +151,39 @@ const filteredPlaces = computed(() => {
   })
 })
 
-function openPlace(place) {
-  selectedPlace.value = place
-  showPlaceModal.value = true
+async function loadPlaces() {
+  try {
+    const res = await fetchPlaces({
+      size: 24,
+      type: selectedType.value === 'all' ? undefined : selectedType.value,
+      keyword: searchText.value || undefined
+    })
+
+    const payload = res?.items || res || []
+    places.value = Array.isArray(payload) ? payload.map(normalizePlace) : []
+  } catch (error) {
+    places.value = []
+  }
 }
 
 onMounted(() => {
-  places.value = mockPlaces
+  loadPlaces()
 })
+
+watch([selectedType, searchText], () => {
+  loadPlaces()
+})
+
+async function openPlace(place) {
+  try {
+    const detail = await fetchPlaceDetail(place.contentId)
+    selectedPlace.value = normalizePlace(detail || place)
+  } catch (error) {
+    selectedPlace.value = normalizePlace(place)
+  }
+
+  showPlaceModal.value = true
+}
 
 watch(
   () => route.query.selected,
@@ -340,123 +382,47 @@ watch(
 }
 
 .image-wrap img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.category,
-.match {
-  position: absolute;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.category {
-  top: 12px;
-  left: 12px;
-  padding: 6px 10px;
-  color: #fff;
-  background: var(--green-800);
-}
-
-.match {
-  right: 10px;
-  bottom: 10px;
-  padding: 6px 10px;
-  color: var(--navy);
-  background: rgba(255, 255, 255, 0.94);
-}
-
 .place-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 16px 16px 18px;
+  padding: 16px;
+}
+
+.place-copy h3 {
+  margin: 0 0 8px;
+  color: var(--navy);
+  font-size: 20px;
+}
+
+.place-copy p {
+  margin: 0 0 10px;
+  color: #5d665e;
+  line-height: 1.6;
 }
 
 .place-meta {
   display: flex;
-  justify-content: space-between;
   gap: 8px;
-  color: #7c857c;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-}
-
-.place-copy h3 {
-  margin: 0;
-  color: var(--navy);
-  font-size: 19px;
-  letter-spacing: -0.5px;
-}
-
-.place-copy p {
-  margin: 0;
-  color: #6c736d;
-  font-size: 13px;
-  line-height: 1.6;
+  margin-bottom: 8px;
+  color: #6b736f;
+  font-size: 12px;
 }
 
 .tag-list {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 4px;
 }
 
 .tag-list span {
-  padding: 6px 10px;
+  padding: 5px 8px;
   border-radius: 999px;
-  background: #f5f8f4;
-  color: #587157;
+  background: var(--green-100);
+  color: var(--green-900);
   font-size: 11px;
-  font-weight: 700;
-}
-
-.empty-state {
-  padding: 36px 24px;
-  border: 1px dashed var(--line);
-  border-radius: 20px;
-  text-align: center;
-  background: rgba(255, 255, 255, 0.7);
-}
-
-.empty-state h3 {
-  margin: 0 0 8px;
-  color: var(--navy);
-}
-
-.empty-state p {
-  margin: 0;
-  color: #6c736d;
-}
-
-@media (max-width: 1000px) {
-  .page-hero {
-    grid-template-columns: 1fr;
-  }
-
-  .place-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 700px) {
-  .page-copy,
-  .hero-side-card {
-    padding: 20px;
-  }
-
-  .hero-stats {
-    grid-template-columns: 1fr;
-  }
-
-  .place-grid {
-    grid-template-columns: 1fr;
-  }
 }
 </style>

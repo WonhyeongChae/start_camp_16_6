@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   headers: {
     'Content-Type': 'application/json'
   }
@@ -24,6 +24,14 @@ export function fetchPlaceDetail(contentId) {
 
 export function fetchPosts(params = {}) {
   return api.get('/posts', { params }).then(res => res.data.data)
+}
+
+export function fetchPostDetail(postId) {
+  return api.get(`/posts/${postId}`).then(res => res.data.data)
+}
+
+export function createPost(payload) {
+  return api.post('/posts', payload).then(res => res.data.data)
 }
 
 export default api
