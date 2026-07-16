@@ -68,6 +68,12 @@ import PlaceDetailModal from '../components/PlaceDetailModal.vue'
 
 const DEFAULT_CENTER = [36.1195, 128.3446]
 const DEFAULT_ZOOM = 9
+const KOREA_BOUNDS = {
+  south: 33,
+  north: 39,
+  west: 124,
+  east: 132
+}
 
 const mapElement = ref(null)
 const places = ref([])
@@ -111,6 +117,15 @@ function normalizePlace(raw) {
     latitude,
     longitude
   }
+}
+
+function hasValidKoreaCoordinates(place) {
+  return Number.isFinite(place.latitude)
+    && Number.isFinite(place.longitude)
+    && place.latitude >= KOREA_BOUNDS.south
+    && place.latitude <= KOREA_BOUNDS.north
+    && place.longitude >= KOREA_BOUNDS.west
+    && place.longitude <= KOREA_BOUNDS.east
 }
 
 function createPopup(place) {
@@ -179,23 +194,52 @@ function replaceTileLayer(nextLayer) {
   activeTileLayer.addTo(map)
 }
 
+function createBackgroundTileLayer(urlTemplate, options = {}) {
+  const BackgroundTileLayer = L.GridLayer.extend({
+    createTile(coords, done) {
+      const tile = document.createElement('div')
+      tile.className = 'localhub-map-tile'
+      const subdomains = options.subdomains || ''
+      const url = L.Util.template(urlTemplate, {
+        ...coords,
+        s: subdomains[Math.abs(coords.x + coords.y) % subdomains.length] || ''
+      })
+      const image = new Image()
+
+      image.onload = () => {
+        tile.style.backgroundImage = `url("${url}")`
+        done(null, tile)
+      }
+      image.onerror = () => done(new Error(`Map tile failed: ${url}`), tile)
+      image.src = url
+      return tile
+    }
+  })
+
+  return new BackgroundTileLayer({
+    tileSize: 256,
+    maxZoom: options.maxZoom,
+    attribution: options.attribution
+  })
+}
+
 function usePrimaryTiles() {
   usingFallbackTiles = false
   tileErrorCount = 0
   tileErrorMessage.value = ''
-  replaceTileLayer(L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    subdomains: 'abcd',
-    maxZoom: 20,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+  replaceTileLayer(createBackgroundTileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    subdomains: 'abc',
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
   }))
 }
 
 function useFallbackTiles() {
   usingFallbackTiles = true
   tileErrorCount = 0
-  tileErrorMessage.value = '기본 지도를 불러오지 못해 대체 지도로 전환했습니다.'
-  replaceTileLayer(L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-    maxZoom: 19,
+  tileErrorMessage.value = '기본 지도를 불러오지 못해 보조 지도로 전환했습니다.'
+  replaceTileLayer(createBackgroundTileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 16,
     attribution: 'Tiles &copy; Esri'
   }))
 }
@@ -229,7 +273,7 @@ async function loadPlaces() {
     const items = response?.items || response || []
     places.value = (Array.isArray(items) ? items : [])
       .map(normalizePlace)
-      .filter((place) => Number.isFinite(place.latitude) && Number.isFinite(place.longitude))
+      .filter(hasValidKoreaCoordinates)
 
     await nextTick()
     initializeMap()
@@ -321,6 +365,14 @@ onBeforeUnmount(() => {
   font-size: 12px;
   line-height: 1.5;
   box-shadow: 0 8px 24px rgba(69, 38, 27, .12);
+}
+
+:deep(.localhub-map-tile) {
+  width: 256px;
+  height: 256px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 256px 256px;
 }
 
 :deep(.marker-cluster-small),
