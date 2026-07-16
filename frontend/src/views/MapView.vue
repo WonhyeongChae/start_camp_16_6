@@ -74,6 +74,13 @@ const KOREA_BOUNDS = {
   west: 124,
   east: 132
 }
+const PLACE_MARKER_ICON = L.divIcon({
+  className: 'localhub-place-marker',
+  html: '<span aria-hidden="true"></span>',
+  iconSize: [30, 38],
+  iconAnchor: [15, 38],
+  popupAnchor: [0, -34]
+})
 
 const mapElement = ref(null)
 const places = ref([])
@@ -164,9 +171,28 @@ function initializeMap() {
     chunkDelay: 30,
     removeOutsideVisibleBounds: true,
     showCoverageOnHover: false,
+    zoomToBoundsOnClick: false,
     spiderfyOnMaxZoom: true,
     maxClusterRadius: 54
   }).addTo(map)
+
+  markerLayer.on('clusterclick', ({ layer }) => {
+    const childMarkers = layer.getAllChildMarkers()
+    const firstPosition = childMarkers[0]?.getLatLng()
+    const isSamePosition = firstPosition && childMarkers.every((marker) => {
+      const position = marker.getLatLng()
+      return position.lat === firstPosition.lat && position.lng === firstPosition.lng
+    })
+
+    // 여러 장소가 같은 좌표를 공유하면 확대를 반복하지 않고 즉시 핀을 펼칩니다.
+    if (isSamePosition) {
+      layer.spiderfy()
+      return
+    }
+
+    // 서로 가까운 장소들의 묶음은 기존처럼 해당 영역까지 확대합니다.
+    layer.zoomToBounds({ padding: [36, 36] })
+  })
 }
 
 function bindTileEvents(tileLayer) {
@@ -252,7 +278,11 @@ function renderMarkers() {
 
   visiblePlaces.value.forEach((place) => {
     const position = [place.latitude, place.longitude]
-    L.marker(position).bindPopup(createPopup(place), { minWidth: 210 }).addTo(markerLayer)
+    L.marker(position, {
+      icon: PLACE_MARKER_ICON,
+      title: place.title,
+      alt: `${place.title} 위치`
+    }).bindPopup(createPopup(place), { minWidth: 210 }).addTo(markerLayer)
     bounds.push(position)
   })
 
@@ -373,6 +403,34 @@ onBeforeUnmount(() => {
   background-position: center;
   background-repeat: no-repeat;
   background-size: 256px 256px;
+}
+
+:deep(.localhub-place-marker) {
+  border: 0;
+  background: transparent;
+}
+
+:deep(.localhub-place-marker span) {
+  position: relative;
+  display: block;
+  width: 30px;
+  height: 30px;
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  background: var(--green-800);
+  box-shadow: 0 5px 14px rgba(16, 67, 45, .35);
+  transform: rotate(-45deg);
+}
+
+:deep(.localhub-place-marker span::after) {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  content: '';
 }
 
 :deep(.marker-cluster-small),

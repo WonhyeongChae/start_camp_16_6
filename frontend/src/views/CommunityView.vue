@@ -4,11 +4,26 @@ import { computed, onMounted, ref } from 'vue'
 import { fetchPosts } from '../api'
 
 const posts = ref([])
+const recommendedPosts = ref([])
 const isLoading = ref(true)
 const errorMessage = ref('')
+const selectedCategory = ref('all')
 
-const todayPosts = computed(() => posts.value.slice(0, 2))
+const POST_CATEGORIES = ['여행', '맛집', '축제', '생활', '자유']
+
+const todayPosts = computed(() => recommendedPosts.value)
 const categoryCount = computed(() => new Set(posts.value.map((post) => post.category).filter(Boolean)).size)
+const categoryFilters = computed(() => [
+  { value: 'all', label: '전체', count: posts.value.length },
+  ...POST_CATEGORIES.map((category) => ({
+    value: category,
+    label: category,
+    count: posts.value.filter((post) => post.category === category).length
+  }))
+])
+const visiblePosts = computed(() => selectedCategory.value === 'all'
+  ? posts.value
+  : posts.value.filter((post) => post.category === selectedCategory.value))
 
 function formatDate(value) {
   return value ? new Date(value).toLocaleDateString('ko-KR') : ''
@@ -16,8 +31,12 @@ function formatDate(value) {
 
 onMounted(async () => {
   try {
-    const data = await fetchPosts({ page: 1, size: 50, sort: 'latest' })
-    posts.value = data.items || []
+    const [latestData, recommendedData] = await Promise.all([
+      fetchPosts({ page: 1, size: 50, sort: 'latest' }),
+      fetchPosts({ page: 1, size: 2, sort: 'recommendations' })
+    ])
+    posts.value = latestData.items || []
+    recommendedPosts.value = recommendedData.items || []
   } catch (error) {
     errorMessage.value = error?.error?.detail || error?.message || '게시글을 불러오지 못했습니다.'
   } finally {
@@ -45,7 +64,7 @@ onMounted(async () => {
             <span class="recommend-kicker">TODAY'S PICK</span>
             <h2>오늘의 이야기</h2>
           </div>
-          <span class="recommend-label">최신 이야기</span>
+          <span class="recommend-label">추천 이야기</span>
         </div>
 
         <div v-if="isLoading" class="recommend-empty">오늘의 이야기를 불러오는 중이에요.</div>
@@ -58,7 +77,7 @@ onMounted(async () => {
           >
             <span class="recommend-category">{{ post.category || '여행 이야기' }}</span>
             <strong>{{ post.title }}</strong>
-            <small>{{ post.nickname }} · {{ formatDate(post.createdAt) }}</small>
+            <small>{{ post.nickname }} · 추천 {{ post.recommendationCount || 0 }} · {{ formatDate(post.createdAt) }}</small>
           </router-link>
         </div>
         <div v-else class="recommend-empty">첫 번째 여행 이야기를 기다리고 있어요.</div>
@@ -66,18 +85,37 @@ onMounted(async () => {
     </div>
 
     <div class="community-actions">
-      <h2>최근 게시글</h2>
+      <div class="recent-post-heading">
+        <h2>최근 게시글</h2>
+        <div class="category-filters" role="group" aria-label="게시글 카테고리 필터">
+          <button
+            v-for="category in categoryFilters"
+            :key="category.value"
+            type="button"
+            class="category-filter"
+            :class="{ 'is-active': selectedCategory === category.value }"
+            :aria-pressed="selectedCategory === category.value"
+            @click="selectedCategory = category.value"
+          >
+            {{ category.label }}
+            <span>{{ category.count }}</span>
+          </button>
+        </div>
+      </div>
       <router-link class="write-button" to="/community/write">글쓰기</router-link>
     </div>
 
     <p v-if="isLoading" class="state-message">게시글을 불러오는 중입니다.</p>
     <p v-else-if="errorMessage" class="state-message error" role="alert">{{ errorMessage }}</p>
     <p v-else-if="!posts.length" class="state-message">아직 등록된 게시글이 없습니다. 첫 글을 작성해 보세요.</p>
+    <p v-else-if="!visiblePosts.length" class="state-message">
+      {{ selectedCategory }} 카테고리에 등록된 게시글이 없습니다.
+    </p>
     <div v-else class="community-list">
-      <article v-for="post in posts" :key="post.id" class="post-card">
+      <article v-for="post in visiblePosts" :key="post.id" class="post-card">
         <div class="post-top">
           <span class="post-chip">{{ post.category }}</span>
-          <span class="post-meta">{{ post.nickname }} · {{ formatDate(post.createdAt) }} · 조회 {{ post.viewCount }}</span>
+          <span class="post-meta">{{ post.nickname }} · {{ formatDate(post.createdAt) }} · 조회 {{ post.viewCount }} · 추천 {{ post.recommendationCount || 0 }}</span>
         </div>
         <h3>{{ post.title }}</h3>
         <p>{{ post.content.length > 120 ? `${post.content.slice(0, 120)}…` : post.content }}</p>
@@ -279,6 +317,59 @@ onMounted(async () => {
   font-size: 20px;
 }
 
+.recent-post-heading {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 16px;
+}
+
+.category-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.category-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 10px;
+  border: 1px solid #dce6df;
+  border-radius: 999px;
+  background: #fff;
+  color: #59675f;
+  font-size: 12px;
+  font-weight: 750;
+  transition: border-color .18s ease, background .18s ease, color .18s ease;
+}
+
+.category-filter:hover {
+  border-color: #98bea7;
+  color: var(--green-900);
+}
+
+.category-filter.is-active {
+  border-color: var(--green-800);
+  background: var(--green-800);
+  color: #fff;
+}
+
+.category-filter span {
+  display: inline-grid;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(18, 104, 68, .1);
+  font-size: 10px;
+}
+
+.category-filter.is-active span {
+  background: rgba(255, 255, 255, .2);
+}
+
 .write-button {
   display: inline-flex;
   padding: 10px 16px;
@@ -367,6 +458,14 @@ onMounted(async () => {
   .post-top {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .community-actions,
+  .recent-post-heading {
+    align-items: flex-start;
+  }
+  .recent-post-heading {
+    flex-direction: column;
+    gap: 10px;
   }
 }
 @media (max-width: 430px) {

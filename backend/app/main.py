@@ -7,6 +7,7 @@ from app.api import chat_router, festivals_router, health_router, places_router,
 from app.core.config import load_settings
 from app.core.exceptions import register_exception_handlers
 from app.db.base import Base
+from app.db.schema import ensure_runtime_schema
 from app.db.session import create_db_engine, create_session_factory
 
 
@@ -18,6 +19,7 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         Base.metadata.create_all(bind=engine)
+        ensure_runtime_schema(engine)
         app.state.engine = engine
         app.state.session_factory = session_factory
         yield

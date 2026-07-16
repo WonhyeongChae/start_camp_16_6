@@ -28,6 +28,7 @@ def test_create_post_returns_expected_shape_and_excludes_password() -> None:
         assert data["nickname"] == "익명"
         assert "password" not in data
         assert "viewCount" in data
+        assert data["recommendationCount"] == 0
         assert "createdAt" in data
         assert "updatedAt" in data
 
@@ -44,6 +45,27 @@ def test_detail_increments_view_count() -> None:
         assert second.status_code == 200
         assert first.json()["data"]["viewCount"] == 1
         assert second.json()["data"]["viewCount"] == 2
+
+
+def test_recommend_post_increments_count_and_recommendation_sort() -> None:
+    with TestClient(create_app()) as client:
+        first = _create_post(client, "추천 대상", "추천 테스트")
+        second = _create_post(client, "비교 대상", "추천 정렬 테스트")
+
+        first_response = client.post(f"/api/posts/{first['id']}/recommend")
+        second_response = client.post(f"/api/posts/{first['id']}/recommend")
+
+        assert first_response.status_code == 200
+        assert first_response.json()["data"]["recommendationCount"] == 1
+        assert second_response.status_code == 200
+        assert second_response.json()["data"]["recommendationCount"] == 2
+
+        sorted_response = client.get("/api/posts", params={"sort": "recommendations"})
+        assert sorted_response.status_code == 200
+        sorted_items = sorted_response.json()["data"]["items"]
+        first_index = next(index for index, item in enumerate(sorted_items) if item["id"] == first["id"])
+        second_index = next(index for index, item in enumerate(sorted_items) if item["id"] == second["id"])
+        assert first_index < second_index
 
 
 def test_list_posts_supports_keyword_category_sort_and_pagination() -> None:

@@ -131,9 +131,9 @@ async function loadHomePanelData() {
   }
 
   try {
-    const postsResult = await fetchPosts({ size: 4 })
+    const postsResult = await fetchPosts({ page: 1, size: 4, sort: 'recommendations' })
     const postItems = Array.isArray(postsResult) ? postsResult : postsResult.items || []
-    posts.value = postItems.slice(0, 2)
+    posts.value = postItems.slice(0, 4)
   } catch {
     posts.value = []
   }

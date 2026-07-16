@@ -1,7 +1,7 @@
 from math import ceil
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.models.post import Post
@@ -9,7 +9,7 @@ from app.schemas.post import PostCreate, PostDeleteRequest, PostListData, PostLi
 
 
 ALLOWED_CATEGORIES = {"여행", "맛집", "축제", "생활", "자유"}
-ALLOWED_SORTS = {"latest", "views"}
+ALLOWED_SORTS = {"latest", "views", "recommendations"}
 
 
 def _to_post_read(post: Post) -> PostRead:
@@ -20,6 +20,7 @@ def _to_post_read(post: Post) -> PostRead:
         category=post.category,
         nickname=post.nickname,
         view_count=post.view_count,
+        recommendation_count=post.recommendation_count,
         created_at=post.created_at,
         updated_at=post.updated_at,
     )
@@ -33,6 +34,7 @@ def _to_post_list_item(post: Post) -> PostListItem:
         category=post.category,
         nickname=post.nickname,
         view_count=post.view_count,
+        recommendation_count=post.recommendation_count,
         created_at=post.created_at,
         updated_at=post.updated_at,
     )
@@ -72,7 +74,13 @@ def list_posts(
 
     total = db.scalar(select(func.count()).select_from(base_query.subquery())) or 0
 
-    if sort == "views":
+    if sort == "recommendations":
+        base_query = base_query.order_by(
+            Post.recommendation_count.desc(),
+            Post.created_at.desc(),
+            Post.id.desc(),
+        )
+    elif sort == "views":
         base_query = base_query.order_by(Post.view_count.desc(), Post.id.desc())
     else:
         base_query = base_query.order_by(Post.created_at.desc(), Post.id.desc())
@@ -100,6 +108,21 @@ def get_post(db: Session, post_id: int) -> PostRead:
     post.view_count += 1
     db.commit()
     db.refresh(post)
+    return _to_post_read(post)
+
+
+def recommend_post(db: Session, post_id: int) -> PostRead:
+    result = db.execute(
+        update(Post)
+        .where(Post.id == post_id)
+        .values(recommendation_count=Post.recommendation_count + 1)
+    )
+    if result.rowcount == 0:
+        db.rollback()
+        raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
+
+    db.commit()
+    post = db.get(Post, post_id)
     return _to_post_read(post)
 
 

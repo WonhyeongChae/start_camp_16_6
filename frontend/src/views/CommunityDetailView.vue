@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { deletePost, fetchPostDetail } from '../api'
+import { deletePost, fetchPostDetail, recommendPost } from '../api'
 
 const route = useRoute()
 const router = useRouter()
@@ -10,6 +10,7 @@ const post = ref(null)
 const password = ref('')
 const showDelete = ref(false)
 const isDeleting = ref(false)
+const isRecommending = ref(false)
 const errorMessage = ref('')
 
 function formatDate(value) {
@@ -41,6 +42,19 @@ async function removePost() {
     isDeleting.value = false
   }
 }
+
+async function addRecommendation() {
+  if (!post.value || isRecommending.value) return
+  errorMessage.value = ''
+  isRecommending.value = true
+  try {
+    post.value = await recommendPost(post.value.id)
+  } catch (error) {
+    errorMessage.value = apiErrorMessage(error)
+  } finally {
+    isRecommending.value = false
+  }
+}
 </script>
 
 <template>
@@ -50,6 +64,13 @@ async function removePost() {
       <h1>{{ post.title }}</h1>
       <p class="meta">{{ post.nickname }} · {{ formatDate(post.createdAt) }} · 조회 {{ post.viewCount }}</p>
       <div class="content">{{ post.content }}</div>
+
+      <div class="recommend-action">
+        <button type="button" :disabled="isRecommending" @click="addRecommendation">
+          <span aria-hidden="true">💚</span>
+          {{ isRecommending ? '추천 반영 중' : `게시글 추천 ${post.recommendationCount || 0}` }}
+        </button>
+      </div>
 
       <div class="detail-actions">
         <router-link class="list-button" to="/community">목록</router-link>
@@ -126,6 +147,36 @@ async function removePost() {
   justify-content: flex-end;
   gap: 9px;
   margin-top: 24px;
+}
+
+.recommend-action {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.recommend-action button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 11px 18px;
+  border: 1px solid #9fc8ae;
+  border-radius: 999px;
+  background: #f2f8f4;
+  color: var(--green-900);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.recommend-action button:hover:not(:disabled) {
+  border-color: var(--green-800);
+  background: var(--green-100);
+}
+
+.recommend-action span {
+  font-size: 18px;
+  line-height: 1;
 }
 
 .detail-actions a,

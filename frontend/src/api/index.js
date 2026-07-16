@@ -44,6 +44,10 @@ export function fetchPostDetail(postId) {
   return api.get(`/posts/${postId}`).then(res => res.data.data)
 }
 
+export function recommendPost(postId) {
+  return api.post(`/posts/${postId}/recommend`).then(res => res.data.data)
+}
+
 export function createPost(payload) {
   return api.post('/posts', payload).then(res => res.data.data)
 }

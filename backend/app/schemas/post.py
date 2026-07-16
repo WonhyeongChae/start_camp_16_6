@@ -35,6 +35,7 @@ class PostRead(CamelModel):
     category: str
     nickname: str
     view_count: int
+    recommendation_count: int
     created_at: datetime
     updated_at: datetime
 

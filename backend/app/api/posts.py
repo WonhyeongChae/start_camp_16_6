@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas.common import SuccessEnvelope
 from app.schemas.post import PostCreate, PostDeleteRequest, PostListData, PostRead, PostUpdate
-from app.services.posts import create_post, delete_post, get_post, list_posts, update_post
+from app.services.posts import create_post, delete_post, get_post, list_posts, recommend_post, update_post
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
@@ -32,6 +32,12 @@ def read_post(post_id: int, db: Session = Depends(get_db)):
 def write_post(payload: PostCreate, db: Session = Depends(get_db)):
     data = create_post(db, payload)
     return SuccessEnvelope[PostRead](data=data, message="게시글을 등록했습니다.")
+
+
+@router.post("/{post_id}/recommend", response_model=SuccessEnvelope[PostRead])
+def recommend(post_id: int, db: Session = Depends(get_db)):
+    data = recommend_post(db, post_id)
+    return SuccessEnvelope[PostRead](data=data, message="게시글을 추천했습니다.")
 
 
 @router.put("/{post_id}", response_model=SuccessEnvelope[PostRead])
