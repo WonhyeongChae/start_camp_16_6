@@ -1,0 +1,311 @@
+<template>
+  <section class="map-page">
+    <header class="map-heading">
+      <div>
+        <span class="map-kicker">GUMI · GYEONGBUK MAP</span>
+        <h1>지도에서 지역 명소를 찾아보세요</h1>
+        <p>마커를 선택하면 장소 정보를 확인하고 상세 화면을 열 수 있습니다.</p>
+      </div>
+      <div class="map-summary" aria-live="polite">
+        <strong>{{ visiblePlaces.length }}</strong>
+        <span>개 장소 표시 중</span>
+      </div>
+    </header>
+
+    <div class="map-toolbar">
+      <label class="search-field" for="map-search">
+        <span aria-hidden="true">⌕</span>
+        <input
+          id="map-search"
+          v-model="searchText"
+          type="search"
+          placeholder="장소명 또는 주소 검색"
+        />
+      </label>
+
+      <label class="region-field" for="map-region">
+        <span>지역</span>
+        <select id="map-region" v-model="selectedRegion">
+          <option value="all">전체 지역</option>
+          <option v-for="region in regions" :key="region" :value="region">{{ region }}</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="map-shell">
+      <div v-if="loading" class="map-status">지도에 표시할 장소를 불러오고 있습니다.</div>
+      <div v-else-if="errorMessage" class="map-status map-status--error">
+        <strong>장소를 불러오지 못했습니다.</strong>
+        <span>{{ errorMessage }}</span>
+        <button type="button" @click="loadPlaces">다시 시도</button>
+      </div>
+      <div ref="mapElement" class="map-canvas" :class="{ 'is-hidden': loading || errorMessage }" aria-label="구미·경북 지역 장소 지도"></div>
+      <div v-if="tileErrorMessage && !loading && !errorMessage" class="tile-warning" role="status">
+        {{ tileErrorMessage }}
+      </div>
+    </div>
+
+    <p class="map-attribution-note">지도 마커에는 좌표가 등록된 장소만 표시됩니다.</p>
+
+    <PlaceDetailModal
+      :show="showPlaceModal"
+      :place="selectedPlace"
+      @update:show="showPlaceModal = $event"
+    />
+  </section>
+</template>
+
+<script setup>
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
+import 'leaflet.markercluster'
+import 'leaflet.markercluster/dist/MarkerCluster.css'
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { fetchPlaceDetail, fetchPlaces } from '../api'
+import PlaceDetailModal from '../components/PlaceDetailModal.vue'
+
+const DEFAULT_CENTER = [36.1195, 128.3446]
+const DEFAULT_ZOOM = 9
+
+const mapElement = ref(null)
+const places = ref([])
+const loading = ref(true)
+const errorMessage = ref('')
+const tileErrorMessage = ref('')
+const searchText = ref('')
+const selectedRegion = ref('all')
+const selectedPlace = ref(null)
+const showPlaceModal = ref(false)
+
+let map = null
+let markerLayer = null
+let tileErrorCount = 0
+
+const regions = computed(() => [...new Set(places.value.map((place) => place.region).filter(Boolean))].sort())
+const visiblePlaces = computed(() => {
+  const keyword = searchText.value.trim().toLowerCase()
+
+  return places.value.filter((place) => {
+    const matchesRegion = selectedRegion.value === 'all' || place.region === selectedRegion.value
+    const haystack = [place.title, place.address, place.region, place.contentType].filter(Boolean).join(' ').toLowerCase()
+    return matchesRegion && (!keyword || haystack.includes(keyword))
+  })
+})
+
+function normalizePlace(raw) {
+  const latitude = Number(raw?.latitude ?? raw?.mapY ?? raw?.map_y)
+  const longitude = Number(raw?.longitude ?? raw?.mapX ?? raw?.map_x)
+
+  return {
+    ...raw,
+    contentId: String(raw?.contentId ?? raw?.content_id ?? ''),
+    contentType: raw?.contentType ?? raw?.content_type ?? '',
+    detailAddress: raw?.detailAddress ?? raw?.detail_address ?? '',
+    imageUrl: raw?.imageUrl ?? raw?.image_url ?? '',
+    thumbnailUrl: raw?.thumbnailUrl ?? raw?.thumbnail_url ?? '',
+    tags: Array.isArray(raw?.tags) ? raw.tags : [],
+    latitude,
+    longitude
+  }
+}
+
+function createPopup(place) {
+  const wrapper = document.createElement('div')
+  wrapper.className = 'localhub-map-popup'
+
+  const meta = document.createElement('span')
+  meta.textContent = [place.region, place.contentType].filter(Boolean).join(' · ')
+
+  const title = document.createElement('strong')
+  title.textContent = place.title
+
+  const address = document.createElement('p')
+  address.textContent = place.address || '주소 정보 미등록'
+
+  const button = document.createElement('button')
+  button.type = 'button'
+  button.textContent = '상세 보기'
+  button.addEventListener('click', () => openPlace(place))
+
+  wrapper.append(meta, title, address, button)
+  return wrapper
+}
+
+function initializeMap() {
+  if (map || !mapElement.value) return
+
+  map = L.map(mapElement.value, { zoomControl: true }).setView(DEFAULT_CENTER, DEFAULT_ZOOM)
+  const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    subdomains: 'abcd',
+    maxZoom: 20,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+  })
+
+  tileLayer.on('tileload', () => {
+    tileErrorCount = 0
+    tileErrorMessage.value = ''
+  })
+  tileLayer.on('tileerror', () => {
+    tileErrorCount += 1
+    if (tileErrorCount >= 3) {
+      tileErrorMessage.value = '배경 지도를 불러오지 못했습니다. 네트워크에서 basemaps.cartocdn.com 접속을 허용해 주세요.'
+    }
+  })
+  tileLayer.addTo(map)
+
+  // 많은 마커를 한 프레임에 그리지 않고 묶어서 표시해 화면 멈춤을 줄입니다.
+  markerLayer = L.markerClusterGroup({
+    chunkedLoading: true,
+    chunkInterval: 100,
+    chunkDelay: 30,
+    removeOutsideVisibleBounds: true,
+    showCoverageOnHover: false,
+    spiderfyOnMaxZoom: true,
+    maxClusterRadius: 54
+  }).addTo(map)
+}
+
+function renderMarkers() {
+  if (!map || !markerLayer) return
+
+  markerLayer.clearLayers()
+  const bounds = []
+
+  visiblePlaces.value.forEach((place) => {
+    const position = [place.latitude, place.longitude]
+    L.marker(position).bindPopup(createPopup(place), { minWidth: 210 }).addTo(markerLayer)
+    bounds.push(position)
+  })
+
+  if (bounds.length) {
+    map.fitBounds(bounds, { padding: [36, 36], maxZoom: 14 })
+  } else {
+    map.setView(DEFAULT_CENTER, DEFAULT_ZOOM)
+  }
+}
+
+async function loadPlaces() {
+  loading.value = true
+  errorMessage.value = ''
+
+  try {
+    // 지도에서는 페이지 구분 없이 좌표가 있는 장소를 한 번에 받아 마커로 표시합니다.
+    const response = await fetchPlaces({ page: 1, size: 2000 })
+    const items = response?.items || response || []
+    places.value = (Array.isArray(items) ? items : [])
+      .map(normalizePlace)
+      .filter((place) => Number.isFinite(place.latitude) && Number.isFinite(place.longitude))
+
+    await nextTick()
+    initializeMap()
+    map?.invalidateSize()
+    renderMarkers()
+  } catch (error) {
+    errorMessage.value = error?.message || '잠시 후 다시 시도해 주세요.'
+  } finally {
+    loading.value = false
+    await nextTick()
+    map?.invalidateSize()
+  }
+}
+
+async function openPlace(place) {
+  try {
+    const detail = await fetchPlaceDetail(place.contentId)
+    selectedPlace.value = normalizePlace(detail || place)
+  } catch (error) {
+    selectedPlace.value = place
+  }
+  showPlaceModal.value = true
+}
+
+watch(visiblePlaces, () => renderMarkers(), { flush: 'post' })
+
+onMounted(loadPlaces)
+
+onBeforeUnmount(() => {
+  map?.remove()
+  map = null
+  markerLayer = null
+})
+</script>
+
+<style scoped>
+.map-page { display: flex; flex-direction: column; gap: 20px; }
+.map-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, .88);
+  box-shadow: var(--shadow);
+}
+.map-kicker { color: var(--green-700); font-size: 11px; font-weight: 850; letter-spacing: 1.8px; }
+.map-heading h1 { margin: 8px 0; color: var(--navy); font-size: clamp(27px, 3vw, 39px); letter-spacing: -1.4px; }
+.map-heading p { margin: 0; color: var(--muted); line-height: 1.65; }
+.map-summary { display: flex; align-items: baseline; gap: 7px; min-width: max-content; color: var(--green-900); }
+.map-summary strong { font-size: 34px; }
+.map-summary span { font-size: 13px; font-weight: 750; }
+.map-toolbar { display: flex; gap: 12px; }
+.search-field, .region-field {
+  display: flex;
+  align-items: center;
+  min-height: 50px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+.search-field { flex: 1; gap: 10px; padding: 0 16px; }
+.search-field span { color: var(--green-800); font-size: 24px; }
+.search-field input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--navy); }
+.region-field { gap: 10px; padding: 0 12px 0 16px; }
+.region-field span { color: var(--muted); font-size: 12px; font-weight: 750; }
+.region-field select { min-width: 120px; border: 0; outline: 0; background: #fff; color: var(--navy); }
+.map-shell { position: relative; min-height: 610px; overflow: hidden; border: 1px solid var(--line); border-radius: 24px; background: #e8efe9; box-shadow: var(--shadow); }
+.map-canvas { width: 100%; height: 610px; }
+.map-canvas.is-hidden { visibility: hidden; }
+.map-status { position: absolute; inset: 0; z-index: 2; display: grid; place-content: center; gap: 10px; color: var(--muted); text-align: center; }
+.map-status--error strong { color: var(--navy); }
+.map-status--error button { justify-self: center; padding: 9px 14px; border-radius: 9px; background: var(--green-800); color: #fff; font-weight: 750; }
+.map-attribution-note { margin: -8px 4px 0; color: var(--muted); font-size: 12px; }
+.tile-warning {
+  position: absolute;
+  z-index: 500;
+  right: 14px;
+  bottom: 28px;
+  max-width: min(420px, calc(100% - 28px));
+  padding: 10px 13px;
+  border: 1px solid #efc8bb;
+  border-radius: 10px;
+  background: rgba(255, 247, 243, .96);
+  color: #914a31;
+  font-size: 12px;
+  line-height: 1.5;
+  box-shadow: 0 8px 24px rgba(69, 38, 27, .12);
+}
+
+:deep(.marker-cluster-small),
+:deep(.marker-cluster-medium),
+:deep(.marker-cluster-large) { background: rgba(22, 129, 82, .24); }
+:deep(.marker-cluster-small div),
+:deep(.marker-cluster-medium div),
+:deep(.marker-cluster-large div) { background: var(--green-800); color: #fff; font-weight: 800; }
+
+:deep(.leaflet-popup-content-wrapper) { border-radius: 14px; box-shadow: 0 12px 34px rgba(16, 32, 22, .18); }
+:deep(.localhub-map-popup) { display: flex; flex-direction: column; gap: 7px; }
+:deep(.localhub-map-popup span) { color: var(--green-700); font-size: 11px; font-weight: 750; }
+:deep(.localhub-map-popup strong) { color: var(--navy); font-size: 16px; }
+:deep(.localhub-map-popup p) { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+:deep(.localhub-map-popup button) { align-self: flex-start; margin-top: 3px; padding: 7px 10px; border-radius: 8px; background: var(--green-800); color: #fff; font-size: 12px; font-weight: 750; }
+
+@media (max-width: 720px) {
+  .map-heading { align-items: flex-start; flex-direction: column; padding: 22px; }
+  .map-toolbar { flex-direction: column; }
+  .region-field select { flex: 1; }
+  .map-shell, .map-canvas { min-height: 520px; height: 520px; }
+}
+</style>

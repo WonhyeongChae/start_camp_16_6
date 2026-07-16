@@ -4,6 +4,12 @@
 > Project period: 2026-07-14 to 2026-07-16 15:00 (KST)  
 > This document is the shared contract between FE, BE, and AI/data work. Do not change an endpoint or field name without team agreement.
 
+| 영역 | 담당자 |
+|---|---|
+| 데이터 정제·FE | 류효정 |
+| FE | 오성식 |
+| BE·API | 채원형 |
+
 ## 1. Global conventions
 
 ### Base URL

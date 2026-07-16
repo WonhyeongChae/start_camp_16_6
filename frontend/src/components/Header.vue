@@ -27,6 +27,7 @@ import logo from '../assets/logo.png'
 const links = [
   { label: '홈', to: '/' },
   { label: '지역 둘러보기', to: '/places' },
+  { label: '지도', to: '/map' },
   { label: '축제 캘린더', to: '/festivals' },
   { label: '커뮤니티', to: '/community' }
 ]
@@ -71,7 +72,7 @@ const links = [
   height: 100%;
   display: flex;
   align-items: stretch;
-  gap: 50px;
+  gap: 38px;
 }
 .main-nav a {
   position: relative;

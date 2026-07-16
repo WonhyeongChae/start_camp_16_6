@@ -1,110 +1,214 @@
-# start_camp_16_6
+# LocalHub
 
+> 구미·경북권의 관광 정보, 축제 일정, 익명 커뮤니티와 AI 여행 도우미를 한곳에서 제공하는 지역 정보 플랫폼
 
+| 구분 | 주소 |
+|---|---|
+| Frontend | https://cosmic-clafoutis-8894bf.netlify.app |
+| Backend API | https://start-camp-16-6.onrender.com/api |
+| Swagger | https://start-camp-16-6.onrender.com/docs |
 
-## Getting started
+## 프로젝트 개요
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+LocalHub는 흩어져 있는 구미·경북권 지역 정보를 제공 JSON 기반으로 정리하고, 사용자 취향에 맞는 장소와 축제를 탐색할 수 있도록 만든 Vue·FastAPI 기반 SPA입니다. 로그인 없이 게시글을 작성할 수 있으며, 작성 시 입력한 비밀번호로 수정·삭제 권한을 확인합니다. 챗봇은 백엔드에서 검색한 지역 데이터와 게시글을 근거로 OpenAI `gpt-5-mini`를 호출합니다.
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+- 개발 기간: 2026-07-14 ~ 2026-07-16
+- 대상 지역: 구미, 대구, 칠곡, 성주, 고령
+- 대상 사용자: 구미·경북권 관광객 및 지역 주민
+- 핵심 목표: 지역 정보 탐색, 익명 정보 공유, 근거 기반 AI 질의응답
 
-## Add your files
+## 주요 기능
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+| 기능 | 설명 | 주요 API |
+|---|---|---|
+| 지역 장소 탐색 | 지역·유형·키워드별 관광 데이터 목록 및 상세 조회 | `GET /api/places` |
+| 장소 지도 | Leaflet·CARTO 기반 클러스터 마커 및 상세 연결 | `GET /api/places` |
+| 축제 캘린더 | 정제한 30개 축제 일정을 월별·지역별로 조회 | `GET /api/festivals` |
+| 익명 커뮤니티 | 게시글 작성·조회·수정·삭제, 검색 및 조회수 | `/api/posts` |
+| AI 챗봇 | 장소·축제·게시글 검색 결과에 근거한 자연어 답변 | `POST /api/chat` |
+| 여행 취향 테스트 | 5개 질문으로 유형을 계산하고 상위 장소를 추천 | `/api/travel-test` |
 
+## 서비스 구조
+
+```mermaid
+flowchart LR
+    U[사용자] --> FE[Vue 3 SPA<br/>Netlify]
+    FE -->|REST / JSON| BE[FastAPI<br/>Render]
+    BE --> DB[(SQLite<br/>커뮤니티 게시글)]
+    BE --> DATA[(제공 JSON +<br/>정제 데이터)]
+    BE -->|근거 데이터와 질문| AI[OpenAI<br/>gpt-5-mini]
+    AI -->|자연어 답변| BE
+    GH[GitHub Actions<br/>test + build] -->|checks passed| BE
 ```
-cd existing_repo
-git remote add origin https://lab.ssafy.com/wchae7/start_camp_16_6.git
-git branch -M master
-git push -uf origin master
+
+챗봇의 모델 선택과 추천 순위 계산을 분리했습니다. 여행 유형·추천 순위는 재현 가능한 코드로 계산하고, OpenAI는 검색된 근거 안에서 답변 문장을 생성합니다. API 키는 브라우저에 전달하지 않습니다.
+
+## 기술 스택
+
+| 영역 | 기술 | 사용 목적 |
+|---|---|---|
+| Frontend | Vue.js 3, Vue Router, Vite, Axios | SPA 화면, 라우팅, API 통신 |
+| Map·Calendar | Leaflet, Leaflet.markercluster, CARTO, FullCalendar | 장소 위치와 축제 일정 시각화 |
+| Backend | Python 3.11, FastAPI, Uvicorn, Pydantic | REST API와 데이터 검증 |
+| Database | SQLAlchemy, SQLite | 익명 커뮤니티 게시글 관리 |
+| AI | OpenAI API, `gpt-5-mini` | 검색 근거 기반 챗봇 답변 |
+| Test | Pytest, HTTPX, Vite build | API 회귀 테스트와 FE 빌드 검증 |
+| CI/CD | GitHub Actions, Render, Netlify | 검사 통과 후 백엔드 배포, FE 배포 |
+
+## 데이터 흐름
+
+```mermaid
+sequenceDiagram
+    participant User as 사용자
+    participant FE as Vue Frontend
+    participant API as FastAPI
+    participant Data as JSON/SQLite
+    participant GPT as gpt-5-mini
+    User->>FE: 지역 정보 질문
+    FE->>API: POST /api/chat
+    API->>Data: 장소·축제·게시글 검색
+    Data-->>API: 관련 레코드
+    API->>GPT: 질문 + 제한된 근거 전달
+    GPT-->>API: 근거 기반 답변
+    API-->>FE: answer + references
+    FE-->>User: 답변과 참고 장소 표시
 ```
 
-## Integrate with your tools
+## 팀 구성 및 역할
 
-* [Set up project integrations](https://lab.ssafy.com/wchae7/start_camp_16_6/-/settings/integrations)
+| 참여자 | 담당 | 주요 작업 |
+|---|---|---|
+| 류효정 | 데이터 정제, FE | 관광·축제 데이터 검증 및 정제, 여행 추천 데이터, FE 화면·데이터 연동 |
+| 오성식 | FE | Vue 화면, 공통 컴포넌트, 라우팅, 커뮤니티·챗봇 UI |
+| 채원형 | BE | FastAPI, SQLAlchemy·SQLite, API·OpenAI 연동, 테스트·배포 구성 |
 
-## Collaborate with your team
+API 스키마, 환경 변수, 배포처럼 여러 영역에 영향을 주는 변경은 담당자 간 검토 후 반영합니다.
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+## 일정 및 WBS
 
-## Test and Deploy
+```mermaid
+gantt
+    title LocalHub 개발 일정 (2026-07-14 ~ 2026-07-16)
+    dateFormat  YYYY-MM-DD HH:mm
+    axisFormat  %m/%d %H:%M
+    section 기획·설계
+    요구사항·MVP·역할 확정       :done, plan, 2026-07-14 09:00, 3h
+    데이터·API·DB 구조 설계      :done, design, after plan, 4h
+    section 데이터·개발
+    관광·축제 데이터 정제        :done, data, 2026-07-14 12:00, 1d
+    커뮤니티·장소 API            :done, api, 2026-07-14 16:00, 1d
+    Vue 화면·API 연동            :done, fe, 2026-07-14 16:00, 1d
+    챗봇·여행 추천·캘린더        :done, selected, 2026-07-15 09:00, 1d
+    section 검증·배포
+    통합 테스트·오류 보완        :done, test, 2026-07-15 18:00, 14h
+    Netlify·Render·CI 배포        :done, deploy, 2026-07-16 08:00, 3h
+    문서화·시연 점검             :done, docs, 2026-07-16 10:00, 270m
+```
 
-Use the built-in continuous integration in GitLab.
+| 단계 | 담당 | 완료 기준 |
+|---|---|---|
+| 요구사항·MVP | 팀 전체 | 필수/선택/제외 범위 및 역할 확정 |
+| 데이터 정제 | 류효정 | 원본 보존, 정제 데이터와 출처 검증 |
+| FE 개발 | 류효정, 오성식 | 주요 화면·모바일 UI·API 연동 동작 |
+| BE 개발 | 채원형 | API·DB·OpenAI 연동 및 예외 처리 |
+| 통합·배포 | 팀 전체 | CI, 배포 URL, 핵심 사용자 흐름 검증 |
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+## 저장소 구조
 
-***
+```text
+start_camp_fork/
+├─ frontend/              # Vue 3 SPA
+│  └─ src/
+│     ├─ api/             # 중앙 API 클라이언트
+│     ├─ components/      # 공통 UI
+│     └─ views/           # 라우트 화면
+├─ backend/
+│  ├─ app/
+│  │  ├─ api/             # FastAPI 라우터
+│  │  ├─ models/          # SQLAlchemy 모델
+│  │  ├─ schemas/         # Pydantic 스키마
+│  │  └─ services/        # 검색·추천·비즈니스 로직
+│  └─ tests/
+├─ data/
+│  ├─ raw/                # 제공 원본(수정 금지)
+│  └─ derived/            # 검토한 날짜·태그·추천 데이터
+├─ docs/                  # API·프로젝트·테스트 명세
+├─ scripts/               # 로컬 실행 스크립트
+└─ .github/workflows/     # GitHub Actions CI
+```
 
-# Editing this README
+## 로컬 실행
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+### 1. 환경 변수
 
-## Suggestions for a good README
+루트의 `.env.example`을 복사해 `.env`를 만들고 실제 키는 `.env`에만 입력합니다.
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+```env
+DATABASE_URL=sqlite:///./localhub.db
+CORS_ORIGINS=http://localhost:5173
+OPENAI_API_KEY=your_key
+OPENAI_MODEL=gpt-5-mini
+VITE_API_BASE_URL=http://localhost:8000/api
+```
 
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
-# 로컬 개발 서버 실행
-
-프로젝트 루트에서 다음 PowerShell 스크립트를 실행하면 백엔드와 프론트엔드가 함께 시작됩니다.
+### 2. 통합 실행 스크립트(Windows PowerShell)
 
 ```powershell
 .\scripts\local-dev.ps1
 ```
 
-- 프론트엔드: `http://localhost:5173/`
-- 백엔드 API 문서: `http://localhost:8000/docs`
+같은 터미널을 즉시 돌려받고 서버는 백그라운드에서 시작하려면:
+
+```powershell
+.\scripts\local-dev.ps1 -NoWait
+```
+
+- Frontend: http://localhost:5173
+- Swagger: http://localhost:8000/docs
 - 실행 로그: `.local/`
 
-두 서버를 종료하려면 다음 명령을 실행합니다.
+서버 종료:
 
 ```powershell
 .\scripts\local-dev.ps1 -Stop
 ```
+
+## 테스트와 배포
+
+```powershell
+# Backend
+$env:PYTHONPATH="$PWD\backend;$PWD"
+python -m pytest backend/tests tests -q
+
+# Frontend
+Set-Location frontend
+npm ci
+npm run build
+```
+
+GitHub Actions는 `main` 대상 push와 pull request에서 백엔드 테스트 및 프론트엔드 빌드를 실행합니다. Render의 `autoDeployTrigger: checksPass` 설정으로 CI 검사가 성공한 커밋만 백엔드에 자동 배포됩니다.
+
+## 문서
+
+- [프로젝트 운영·범위 가이드](docs/PROJECT_GUIDE.md)
+- [API 명세](docs/API_SPEC.md)
+- [여행 취향 테스트 명세](docs/TRAVEL_TEST_SPEC.md)
+- [Frontend 작업 가이드](frontend/FRONT_GUIDE.md)
+- [Backend 작업 가이드](backend/BE_GUIDE.md)
+- [원본 데이터 출처](data/raw/SOURCE.md)
+
+## 보안 및 데이터 원칙
+
+- `.env`, OpenAI API 키, 로컬 DB는 Git에 커밋하지 않습니다.
+- 원본 JSON은 수정하지 않고, 날짜·태그 등 검증한 값은 `data/derived/`에서 `contentId`로 연결합니다.
+- 게시글 비밀번호는 교육용 요구사항에 따라 원문 저장하지만 API 응답과 로그에는 노출하지 않습니다.
+- 챗봇은 검색 근거에 없는 일정·가격·연락처를 생성하지 않습니다.
+
+## MVP 범위
+
+| 우선순위 | 범위 |
+|---|---|
+| Must | 제공 JSON 기반 지역 정보, 익명 커뮤니티 CRUD, 챗봇 API·UI, Vue/FastAPI/SQLite, Netlify·Render 배포 |
+| Should | 여행 취향 테스트와 맞춤 추천, 검증된 날짜 기반 축제 캘린더 |
+| Could | 게시글 검색·조회수, 데이터 시각화 확장 |
+| Won't | 회원·로그인, 날씨·경로 API, 실시간 알림, 다국어, 선정 외 권역 확장 |

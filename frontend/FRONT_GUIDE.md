@@ -4,7 +4,7 @@
 - ../docs/PROJECT_GUIDE.md
 - ../docs/API_SPEC.md
 
-나는 LocalHub 프로젝트의 FE 담당자다.
+나는 LocalHub 프로젝트의 FE 담당자다. FE 담당자는 **류효정, 오성식**이며, 류효정은 정제 데이터와 화면 간 필드 검증도 함께 담당한다.
 
 이번 작업의 목표는 frontend 디렉터리에 Vue.js 3 기반 프론트엔드의
 공통 구조를 만드는 것이다.

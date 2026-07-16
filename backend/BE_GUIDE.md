@@ -4,7 +4,7 @@
 - ../docs/PROJECT_GUIDE.md
 - ../docs/API_SPEC.md
 
-나는 LocalHub 프로젝트의 BE 담당자다.
+나는 LocalHub 프로젝트의 BE 담당자다. BE 담당자는 **채원형**이며, API·DB·OpenAI 연동과 테스트·배포 구성을 책임진다.
 
 이번 작업의 목표는 backend 디렉터리에 FastAPI, SQLAlchemy, SQLite
 기반 백엔드의 공통 구조를 만드는 것이다.

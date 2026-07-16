@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [switch]$Stop
+    [switch]$Stop,
+    [switch]$NoWait
 )
 
 $ErrorActionPreference = "Stop"
@@ -186,13 +187,15 @@ function Wait-ForUrl {
     throw "$Name did not start in time. Check the .local logs."
 }
 
-try {
-    Wait-ForUrl -Name "backend" -Url $BackendUrl
-    Wait-ForUrl -Name "frontend" -Url $FrontendUrl
-} catch {
-    Write-Host "Backend error log: $BackendErrorLog"
-    Write-Host "Frontend error log: $FrontendErrorLog"
-    throw
+if (-not $NoWait) {
+    try {
+        Wait-ForUrl -Name "backend" -Url $BackendUrl
+        Wait-ForUrl -Name "frontend" -Url $FrontendUrl
+    } catch {
+        Write-Host "Backend error log: $BackendErrorLog"
+        Write-Host "Frontend error log: $FrontendErrorLog"
+        throw
+    }
 }
 
 Write-Host ""
@@ -201,3 +204,6 @@ Write-Host "FE:   http://localhost:5173/"
 Write-Host "API:  http://localhost:8000/docs"
 Write-Host "LOG:  $RuntimeDir"
 Write-Host "Stop: .\scripts\local-dev.ps1 -Stop"
+if ($NoWait) {
+    Write-Host "Servers are starting in the background. Check the logs if a URL is not ready yet."
+}

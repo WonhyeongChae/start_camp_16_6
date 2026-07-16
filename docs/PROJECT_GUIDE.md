@@ -33,11 +33,11 @@ Never add a new feature because it seems useful. Record it as a future idea inst
 
 ## 2. Ownership
 
-| Contributor | Primary ownership | Cooperation points |
+| 참여자 | 주 담당 | 협업 지점 |
 |---|---|---|
-| 원형 | FE: Vue structure, routing, regional/community/chat/test/calendar UI | Agree API shapes with 효정; result UI with 성식 |
-| 효정 | BE: FastAPI, SQLite, CRUD, OpenAI server call, deployment | Agree data schemas with 성식; integration with 원형 |
-| 성식 | AI/data: JSON normalization, derived tags, recommendation logic, festival data validation | Review AI grounding with 효정; result fields with 원형 |
+| 류효정 | 데이터 정제, FE: 원본 JSON 검증·정규화, 축제 날짜·여행 추천 데이터, Vue 화면 및 데이터 연동 | 채원형과 데이터/API 스키마 합의, 오성식과 공통 UI 분담 |
+| 오성식 | FE: Vue 화면, 공통 컴포넌트, 라우팅, 커뮤니티·챗봇 UI | 류효정과 화면·데이터 표시 규칙 합의, 채원형과 API 연동 검증 |
+| 채원형 | BE: FastAPI, SQLAlchemy·SQLite, CRUD, OpenAI 서버 호출, 테스트·배포 | 류효정과 정제 데이터 스키마 합의, FE 담당자들과 통합 테스트 |
 
 Ownership is for coordination, not permission. Cross-cutting API, schema, environment, or deployment changes require review by another contributor.
 
@@ -184,7 +184,7 @@ A task is done only when:
 
 - Swagger verifies CRUD/place/chat contracts.
 - FE replaces mocks with real endpoints.
-- AI/data owner checks grounding and field accuracy.
+- 류효정이 정제 데이터와 AI 근거 필드의 정확성을 확인한다.
 
 ### Checkpoint 3: selected features
 
