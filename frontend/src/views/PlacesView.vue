@@ -289,11 +289,14 @@ watch(
 .hero-kicker,
 .recommend-kicker {
   display: inline-block;
-  margin-bottom: 12px;
   color: var(--green-700);
   font-size: 11px;
   font-weight: 850;
-  letter-spacing: 1.8px;
+  letter-spacing: 1.5px;
+}
+
+.hero-kicker {
+  margin-bottom: 12px;
 }
 
 .page-copy h1 {
