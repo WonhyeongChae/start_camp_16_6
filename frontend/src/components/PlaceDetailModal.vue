@@ -12,7 +12,7 @@
         <div class="detail-body">
           <span class="place-chip">{{ place.region || place.contentType }}</span>
           <h2 id="place-detail-title">{{ place.title }}</h2>
-          
+
           <dl class="detail-grid">
             <div><dt>유형</dt><dd>{{ place.contentType || '관광지' }}</dd></div>
             <div><dt>주소</dt><dd>{{ [place.address, place.detailAddress].filter(Boolean).join(' ') || '주소 정보 미등록' }}</dd></div>
@@ -64,8 +64,8 @@ let marker = null
 
 // 유효한 좌표가 있는지 확인하는 computed 속성
 const hasCoordinates = computed(() => {
-  return props.place && 
-         Number.isFinite(props.place.latitude) && 
+  return props.place &&
+         Number.isFinite(props.place.latitude) &&
          Number.isFinite(props.place.longitude)
 })
 
@@ -91,7 +91,7 @@ function initMap() {
   } else {
     // 줌 컨트롤을 제외하여 모달 안에서 깔끔하게 보이도록 설정
     map = L.map(mapElement.value, { zoomControl: false }).setView(position, 14)
-    
+
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap'
@@ -162,13 +162,13 @@ onBeforeUnmount(() => {
   right: 16px;
   width: 36px;
   height: 36px;
-  
+
   /* Flexbox를 사용하여 '×'를 정중앙에 정렬 */
   display: flex;
   align-items: center;
   justify-content: center;
   padding-bottom: 2px; /* 폰트에 따라 세로 위치가 미세하게 쏠려 보일 경우 패딩으로 미세 조정 (필요에 따라 조절 또는 제거) */
-  
+
   border: none;
   border-radius: 999px;
   background: rgba(255,255,255,.92);

@@ -108,10 +108,10 @@
 
       <!-- 페이지네이션(더보기) 버튼 영역 추가 -->
       <div v-if="currentPage < totalPages" class="pagination-action">
-        <button 
-          type="button" 
-          class="load-more-btn" 
-          @click="loadMore" 
+        <button
+          type="button"
+          class="load-more-btn"
+          @click="loadMore"
           :disabled="isLoading"
         >
           {{ isLoading ? '장소 불러오는 중...' : '더보기' }}

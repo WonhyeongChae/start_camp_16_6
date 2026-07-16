@@ -4,6 +4,8 @@
 !.env.example
 !.env.*.example
 .local/
+.agents/
+.agents/
 
 # Python
 __pycache__/
@@ -22,6 +24,8 @@ env/
 # Local databases / generated files
 *.db
 *.sqlite3
+tmp_*.py
+/package-lock.json
 
 # Frontend
 node_modules/
@@ -34,3 +38,7 @@ build/
 Thumbs.db
 .vscode/
 .idea/
+
+# Local one-off scripts / accidental root lockfile
+tmp_*.py
+/package-lock.json

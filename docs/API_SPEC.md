@@ -1,7 +1,7 @@
 # LocalHub API Specification v1.0
 
-> Last updated: 2026-07-14  
-> Project period: 2026-07-14 to 2026-07-16 15:00 (KST)  
+> Last updated: 2026-07-14
+> Project period: 2026-07-14 to 2026-07-16 15:00 (KST)
 > This document is the shared contract between FE, BE, and AI/data work. Do not change an endpoint or field name without team agreement.
 
 | 영역 | 담당자 |

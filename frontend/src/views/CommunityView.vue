@@ -126,7 +126,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.community-page { 
+.community-page {
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -136,7 +136,7 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: 1.05fr .95fr;
   gap: 18px;
-  align-items: stretch; 
+  align-items: stretch;
 }
 
 .page-copy, .hero-side-card {
@@ -469,7 +469,7 @@ onMounted(async () => {
   }
 }
 @media (max-width: 430px) {
-  .hero-summary { 
+  .hero-summary {
     align-items: flex-start;
     gap: 14px;
   }
