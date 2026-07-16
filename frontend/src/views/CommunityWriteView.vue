@@ -126,21 +126,120 @@ async function submitPost() {
 </template>
 
 <style scoped>
-.write-page { display: flex; justify-content: center; }
-.write-card { width: 100%; max-width: 760px; padding: 28px; border: 1px solid var(--line); border-radius: 24px; background: rgba(255,255,255,.92); box-shadow: var(--shadow); }
-.hero-kicker { display: inline-block; margin-bottom: 12px; color: var(--green-700); font-size: 11px; font-weight: 850; letter-spacing: 1.8px; }
-.write-card h1 { margin: 0; color: var(--navy); font-size: clamp(24px, 2.4vw, 30px); }
-.write-card > p { margin: 8px 0 20px; color: #5d665e; }
-.write-form { display: flex; flex-direction: column; gap: 14px; }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.write-form label { display: flex; flex-direction: column; gap: 8px; color: var(--navy); font-weight: 700; }
-.write-form input, .write-form select, .write-form textarea { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: #fff; font: inherit; }
-.write-form textarea { resize: vertical; }
-.write-form small { color: #737b76; font-size: 11px; font-weight: 400; }
-.form-actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 8px; }
-.cancel-button { padding: 11px 16px; color: #5d665e; font-weight: 700; }
-.error-message { margin: 0; padding: 10px 12px; color: #9b302c; background: #fff0ef; border-radius: 10px; font-size: 13px; }
-.status-message { color: #66736c; }
-button:disabled { opacity: .55; cursor: default; }
-@media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } .write-card { padding: 22px 18px; } }
+.write-page {
+  display: flex;
+  justify-content: center;
+}
+
+.write-card {
+  width: 100%;
+  max-width: 760px;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow);
+}
+
+.hero-kicker {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: var(--green-700);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 1.8px;
+}
+
+.write-card h1 {
+  margin: 0;
+  color: var(--navy);
+  font-size: clamp(24px, 2.4vw, 30px);
+}
+
+.write-card > p {
+  margin: 8px 0 20px;
+  color: #5d665e;
+}
+
+.write-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.write-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--navy);
+  font-weight: 700;
+}
+
+.write-form input,
+.write-form select,
+.write-form textarea {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  font: inherit;
+}
+
+.write-form textarea {
+  resize: vertical;
+}
+
+.write-form small {
+  color: #737b76;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.cancel-button {
+  padding: 11px 16px;
+  color: #5d665e;
+  font-weight: 700;
+}
+
+.error-message {
+  margin: 0;
+  padding: 10px 12px;
+  color: #9b302c;
+  background: #fff0ef;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.status-message {
+  color: #66736c;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+@media (max-width: 560px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .write-card {
+    padding: 22px 18px;
+  }
+}
 </style>
