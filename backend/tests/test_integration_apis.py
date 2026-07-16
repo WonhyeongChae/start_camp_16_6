@@ -198,6 +198,89 @@ def test_chat_finds_nearest_upcoming_festival_from_today(monkeypatch) -> None:
         load_settings.cache_clear()
 
 
+def test_chat_connects_all_community_example_questions_to_posts(monkeypatch) -> None:
+    captured_contexts: list[str] = []
+
+    class FakeResponses:
+        def create(self, **kwargs):
+            captured_contexts.append(kwargs["input"][-1]["content"])
+            return SimpleNamespace(
+                output_text="커뮤니티 게시글을 바탕으로 답변했습니다.",
+                status="completed",
+                incomplete_details=None,
+                usage=SimpleNamespace(
+                    output_tokens=20,
+                    output_tokens_details=SimpleNamespace(reasoning_tokens=5),
+                ),
+            )
+
+    class FakeOpenAI:
+        def __init__(self, api_key: str):
+            self.responses = FakeResponses()
+
+    seed_posts = [
+        ("구미 대표 여행지 추천", "금오산과 금오천을 구미 여행지로 추천합니다.", "여행"),
+        ("금오산 등산 후기", "금오산에 직접 다녀온 등산 경험과 정상 풍경 후기입니다.", "여행"),
+        ("새마을시장 구미 맛집", "구미 새마을시장에서 먹은 지역 음식과 맛집 후기입니다.", "맛집"),
+        ("아이와 함께하는 낙동강 체험", "어린이와 가족이 함께 가기 좋은 체험 장소입니다.", "여행"),
+        ("금오천 연인 데이트 코스", "커플이 걷기 좋은 금오천 데이트 코스를 소개합니다.", "여행"),
+        ("주말 동락공원 나들이", "주말에 가볼 만한 동락공원 나들이 장소입니다.", "여행"),
+        ("구미 라면축제 방문 후기", "구미 라면축제 행사와 먹거리 체험을 요약한 글입니다.", "축제"),
+        ("선산시장 지역 음식 이야기", "선산시장 먹거리와 구미 지역 음식을 소개합니다.", "맛집"),
+        ("금오천 산책 장소 추천", "커뮤니티 이용자가 추천한 조용한 산책 장소입니다.", "여행"),
+        ("최근 금오산 여행 후기", "최근 작성한 금오산 여행 경험과 방문 후기입니다.", "여행"),
+    ]
+    cases = [
+        ("커뮤니티에서 추천한 구미 여행지는 어디야?", "구미 대표 여행지 추천"),
+        ("금오산에 다녀온 사람들의 후기가 있어?", "금오산 등산 후기"),
+        ("구미 맛집과 관련된 게시글을 찾아줘.", "새마을시장 구미 맛집"),
+        ("아이와 함께 가기 좋은 장소를 추천한 글이 있어?", "아이와 함께하는 낙동강 체험"),
+        ("데이트 코스로 추천한 장소가 있는지 알려줘.", "금오천 연인 데이트 코스"),
+        ("주말에 가볼 만한 곳을 소개한 게시글을 찾아줘.", "주말 동락공원 나들이"),
+        ("구미 축제에 관한 커뮤니티 글을 요약해 줘.", "구미 라면축제 방문 후기"),
+        ("최근 작성된 여행 후기에는 어떤 내용이 있어?", "최근 금오산 여행 후기"),
+        ("시장이나 지역 음식과 관련된 게시글이 있어?", "선산시장 지역 음식 이야기"),
+        ("커뮤니티 이용자들이 추천한 산책 장소를 알려줘.", "금오천 산책 장소 추천"),
+    ]
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(chat_service, "OpenAI", FakeOpenAI)
+    load_settings.cache_clear()
+
+    try:
+        with TestClient(create_app()) as client:
+            created: dict[str, int] = {}
+            for title, content, category in seed_posts:
+                response = client.post("/api/posts", json={
+                    "title": title,
+                    "content": content,
+                    "category": category,
+                    "nickname": "테스터",
+                    "password": "1234",
+                })
+                assert response.status_code == 201
+                created[title] = response.json()["data"]["id"]
+
+            for _ in range(5):
+                recommend_response = client.post(
+                    f"/api/posts/{created['구미 대표 여행지 추천']}/recommend"
+                )
+                assert recommend_response.status_code == 200
+
+            for index, (question, expected_title) in enumerate(cases):
+                response = client.post("/api/chat", json={"message": question, "history": []})
+                assert response.status_code == 200
+                data = response.json()["data"]
+                post_references = [item for item in data["references"] if item["type"] == "post"]
+                assert post_references, question
+                assert any(item["title"] == expected_title for item in post_references), question
+                assert expected_title in captured_contexts[index], question
+                assert "recommendations=" in captured_contexts[index], question
+                assert "created=" in captured_contexts[index], question
+    finally:
+        load_settings.cache_clear()
+
+
 def test_chat_returns_openai_api_error_without_api_key(monkeypatch) -> None:
     # 로컬 .env가 있어도 빈 프로세스 환경변수가 우선하도록 테스트를 격리합니다.
     monkeypatch.setenv("OPENAI_API_KEY", "")

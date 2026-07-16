@@ -293,10 +293,12 @@ Response:
 Chat grounding rules:
 
 1. Search provided JSON and posts before calling OpenAI.
-2. Send only relevant records as context.
-3. Never claim unavailable prices, schedules, reviews, or facilities.
-4. Return every used place/post in `references`; otherwise return `[]`.
-5. OpenAI failure returns `500 / OPENAI_API_ERROR` with no fabricated answer.
+2. Community questions infer post category and expand common travel expressions such as family, food, date, walking, weekend, review, and festival.
+3. Recommendation questions prioritize `recommendationCount`; recent/latest questions prioritize `createdAt`.
+4. Send only relevant records as context, including post category, recommendation count, creation time, title, and content.
+5. Never claim unavailable prices, schedules, reviews, or facilities.
+6. Return every used place/post in `references`; post references open `/community/{id}` in the frontend.
+7. OpenAI failure returns `500 / OPENAI_API_ERROR` with no fabricated answer.
 
 ## 6. Travel test API
 

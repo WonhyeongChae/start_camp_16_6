@@ -3,7 +3,7 @@ import re
 from datetime import date
 
 from openai import OpenAI, OpenAIError
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import load_settings
@@ -18,13 +18,113 @@ from data.place_loader import load_place_dataset
 SYSTEM_PROMPT = """당신은 구미·경북 지역 여행을 돕는 LocalHub 안내 챗봇입니다.
 제공된 참고 정보에 근거해 한국어로 간결하고 친절하게 답하세요.
 참고 정보에 없는 가격, 일정, 후기, 편의시설 등을 추측하지 마세요.
+커뮤니티 게시글은 작성자의 경험과 추천으로 구분해 요약하고 게시글 제목을 함께 안내하세요.
 정보가 부족하면 부족하다고 명확히 말하고, 제공된 대화 기록을 고려하세요."""
 
 logger = logging.getLogger(__name__)
 
+COMMUNITY_INTENT_WORDS = {
+    "커뮤니티", "게시글", "후기", "이용자", "사람들", "작성된", "추천한", "소개한",
+}
+POST_STOP_WORDS = {
+    "구미", "경북", "커뮤니티", "게시글", "글", "이용자", "사람들", "관련된", "관련",
+    "추천", "추천한", "소개한", "찾아줘", "알려줘", "있는지", "있어", "어디야", "어떤",
+    "내용", "요약해", "작성된", "가볼", "만한", "관한", "장소", "여행지",
+}
+POST_TERM_GROUPS = (
+    {"아이", "어린이", "가족", "자녀", "키즈", "체험"},
+    {"맛집", "음식", "먹거리", "식당", "시장", "전통시장"},
+    {"데이트", "연인", "커플", "코스"},
+    {"산책", "걷기", "둘레길", "공원", "트레킹"},
+    {"주말", "나들이", "여행", "여행후기"},
+    {"후기", "다녀온", "방문", "경험"},
+    {"축제", "행사", "공연"},
+)
+POST_CATEGORIES = {
+    "맛집": {"맛집", "음식", "먹거리", "식당", "시장", "전통시장"},
+    "축제": {"축제", "행사", "공연"},
+    "생활": {"생활", "육아"},
+    "자유": {"자유"},
+    "여행": {"여행", "여행지", "후기", "산책", "데이트", "주말", "나들이", "아이", "가족"},
+}
+
 
 def _terms(message: str) -> list[str]:
     return [term for term in re.findall(r"[가-힣A-Za-z0-9]+", message.lower()) if len(term) >= 2]
+
+
+def _normalize_post_term(term: str) -> str:
+    normalized = term.lower()
+    for suffix in ("에서", "에게", "으로", "들의", "와", "과", "을", "를", "은", "는", "이", "가", "에", "의", "도"):
+        if normalized.endswith(suffix) and len(normalized) > len(suffix) + 1:
+            return normalized[:-len(suffix)]
+    return normalized
+
+
+def _is_community_question(message: str) -> bool:
+    normalized_terms = {_normalize_post_term(term) for term in _terms(message)}
+    return bool(normalized_terms & COMMUNITY_INTENT_WORDS)
+
+
+def _post_search_terms(message: str) -> tuple[set[str], set[str]]:
+    original_terms = {
+        normalized
+        for term in _terms(message)
+        if len(normalized := _normalize_post_term(term)) >= 2 and normalized not in POST_STOP_WORDS
+    }
+    expanded_terms = set(original_terms)
+    for group in POST_TERM_GROUPS:
+        if original_terms & group:
+            expanded_terms.update(group)
+    return original_terms, expanded_terms
+
+
+def _post_category(message: str) -> str | None:
+    normalized_terms = {_normalize_post_term(term) for term in _terms(message)}
+    for category, keywords in POST_CATEGORIES.items():
+        if normalized_terms & keywords:
+            return category
+    return None
+
+
+def _find_posts(db: Session, message: str, limit: int = 5) -> list[Post]:
+    original_terms, expanded_terms = _post_search_terms(message)
+    category = _post_category(message) if _is_community_question(message) else None
+
+    query = select(Post)
+    if category:
+        query = query.where(Post.category == category)
+    candidates = list(db.scalars(query.order_by(Post.id.desc()).limit(200)).all())
+
+    ranked: list[tuple[int, Post]] = []
+    for post in candidates:
+        title = post.title.lower()
+        content = post.content.lower()
+        score = 4 if category and post.category == category else 0
+        for term in expanded_terms:
+            weight = 2 if term in original_terms else 1
+            if term in title:
+                score += 4 * weight
+            if term in content:
+                score += weight
+        if score > 0 or not expanded_terms:
+            ranked.append((score, post))
+
+    recent_intent = "최근" in message or "최신" in message
+    recommendation_intent = "추천" in message and len(original_terms) <= 1
+    if recent_intent:
+        ranked.sort(key=lambda item: (item[1].created_at, item[0], item[1].id), reverse=True)
+    elif recommendation_intent:
+        ranked.sort(
+            key=lambda item: (item[1].recommendation_count, item[0], item[1].created_at, item[1].id),
+            reverse=True,
+        )
+    else:
+        ranked.sort(
+            key=lambda item: (item[0], item[1].recommendation_count, item[1].created_at, item[1].id),
+            reverse=True,
+        )
+    return [post for _, post in ranked[:limit]]
 
 
 def _build_client() -> OpenAI:
@@ -94,7 +194,8 @@ def _build_context(places, posts, festivals: list[Festival], festival_notice: st
         for place in places
     ]
     post_lines = [
-        f"- post: {post.title} / {post.content[:500]}"
+        f"- post: id={post.id} / category={post.category} / recommendations={post.recommendation_count} / "
+        f"created={post.created_at.isoformat()} / title={post.title} / content={post.content[:500]}"
         for post in posts
     ]
     festival_lines = [
@@ -116,10 +217,7 @@ def create_grounded_answer(db: Session, payload: ChatRequest) -> ChatData:
         for term in terms
     ) and place.get("contentId") not in festival_ids][:3]
 
-    posts: list[Post] = []
-    if terms:
-        conditions = [or_(Post.title.ilike(f"%{term}%"), Post.content.ilike(f"%{term}%")) for term in terms]
-        posts = list(db.scalars(select(Post).where(or_(*conditions)).order_by(Post.id.desc()).limit(3)).all())
+    posts = _find_posts(db, payload.message)
 
     references = [
         ChatReference(type="festival", id=festival.content_id, title=festival.title)
