@@ -357,7 +357,7 @@ watch(
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
 }
 
 .recommend-heading h2 {
@@ -371,7 +371,7 @@ watch(
   border-radius: 999px;
   background: var(--green-100);
   color: var(--green-900);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   white-space: nowrap;
 }

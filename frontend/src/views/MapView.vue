@@ -14,7 +14,7 @@
 
     <div class="map-toolbar">
       <label class="search-field" for="map-search">
-        <span aria-hidden="true">⌕</span>
+        <img :src="searchIcon" alt="" aria-hidden="true" />
         <input
           id="map-search"
           v-model="searchText"
@@ -63,6 +63,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.css'
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { fetchPlaceDetail, fetchPlaces } from '../api'
+import searchIcon from '../assets/search.png'
 import PlaceDetailModal from '../components/PlaceDetailModal.vue'
 
 const DEFAULT_CENTER = [36.1195, 128.3446]
@@ -80,7 +81,9 @@ const showPlaceModal = ref(false)
 
 let map = null
 let markerLayer = null
+let activeTileLayer = null
 let tileErrorCount = 0
+let usingFallbackTiles = false
 
 const regions = computed(() => [...new Set(places.value.map((place) => place.region).filter(Boolean))].sort())
 const visiblePlaces = computed(() => {
@@ -136,23 +139,8 @@ function initializeMap() {
   if (map || !mapElement.value) return
 
   map = L.map(mapElement.value, { zoomControl: true }).setView(DEFAULT_CENTER, DEFAULT_ZOOM)
-  const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    subdomains: 'abcd',
-    maxZoom: 20,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-  })
 
-  tileLayer.on('tileload', () => {
-    tileErrorCount = 0
-    tileErrorMessage.value = ''
-  })
-  tileLayer.on('tileerror', () => {
-    tileErrorCount += 1
-    if (tileErrorCount >= 3) {
-      tileErrorMessage.value = '배경 지도를 불러오지 못했습니다. 네트워크에서 basemaps.cartocdn.com 접속을 허용해 주세요.'
-    }
-  })
-  tileLayer.addTo(map)
+  usePrimaryTiles()
 
   // 많은 마커를 한 프레임에 그리지 않고 묶어서 표시해 화면 멈춤을 줄입니다.
   markerLayer = L.markerClusterGroup({
@@ -164,6 +152,52 @@ function initializeMap() {
     spiderfyOnMaxZoom: true,
     maxClusterRadius: 54
   }).addTo(map)
+}
+
+function bindTileEvents(tileLayer) {
+  tileLayer.on('tileload', () => {
+    tileErrorMessage.value = ''
+  })
+  tileLayer.on('tileerror', () => {
+    tileErrorCount += 1
+
+    if (!usingFallbackTiles && tileErrorCount >= 3) {
+      useFallbackTiles()
+      return
+    }
+
+    if (usingFallbackTiles && tileErrorCount >= 3) {
+      tileErrorMessage.value = '배경 지도 제공자에 연결하지 못했습니다. 네트워크 상태를 확인해 주세요.'
+    }
+  })
+  return tileLayer
+}
+
+function replaceTileLayer(nextLayer) {
+  if (activeTileLayer && map?.hasLayer(activeTileLayer)) map.removeLayer(activeTileLayer)
+  activeTileLayer = bindTileEvents(nextLayer)
+  activeTileLayer.addTo(map)
+}
+
+function usePrimaryTiles() {
+  usingFallbackTiles = false
+  tileErrorCount = 0
+  tileErrorMessage.value = ''
+  replaceTileLayer(L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    subdomains: 'abcd',
+    maxZoom: 20,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+  }))
+}
+
+function useFallbackTiles() {
+  usingFallbackTiles = true
+  tileErrorCount = 0
+  tileErrorMessage.value = '기본 지도를 불러오지 못해 대체 지도로 전환했습니다.'
+  replaceTileLayer(L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19,
+    attribution: 'Tiles &copy; Esri'
+  }))
 }
 
 function renderMarkers() {
@@ -228,6 +262,7 @@ onBeforeUnmount(() => {
   map?.remove()
   map = null
   markerLayer = null
+  activeTileLayer = null
 })
 </script>
 
@@ -260,7 +295,7 @@ onBeforeUnmount(() => {
   background: #fff;
 }
 .search-field { flex: 1; gap: 10px; padding: 0 16px; }
-.search-field span { color: var(--green-800); font-size: 24px; }
+.search-field img { width: 21px; height: 21px; object-fit: contain; filter: invert(35%) sepia(18%) saturate(1190%) hue-rotate(97deg) brightness(88%); }
 .search-field input { width: 100%; border: 0; outline: 0; background: transparent; color: var(--navy); }
 .region-field { gap: 10px; padding: 0 12px 0 16px; }
 .region-field span { color: var(--muted); font-size: 12px; font-weight: 750; }
