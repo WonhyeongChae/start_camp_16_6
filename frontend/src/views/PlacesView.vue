@@ -289,11 +289,14 @@ watch(
 .hero-kicker,
 .recommend-kicker {
   display: inline-block;
-  margin-bottom: 12px;
   color: var(--green-700);
   font-size: 11px;
   font-weight: 850;
-  letter-spacing: 1.8px;
+  letter-spacing: 1.5px;
+}
+
+.hero-kicker {
+  margin-bottom: 12px;
 }
 
 .page-copy h1 {
@@ -354,7 +357,7 @@ watch(
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
 }
 
 .recommend-heading h2 {
@@ -368,7 +371,7 @@ watch(
   border-radius: 999px;
   background: var(--green-100);
   color: var(--green-900);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
 }
