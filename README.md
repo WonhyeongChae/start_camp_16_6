@@ -2,6 +2,10 @@
 
 > 구미·경북권의 관광 정보, 축제 일정, 익명 커뮤니티와 AI 여행 도우미를 한곳에서 제공하는 지역 정보 플랫폼
 
+<img width="1280" height="720" alt="KakaoTalk_20260719_172515902" src="https://github.com/user-attachments/assets/48d94236-10ca-422a-ad5c-cdea3a0246ae" />
+<img width="1559" height="1010" alt="KakaoTalk_20260719_172515902_01" src="https://github.com/user-attachments/assets/9325d70e-cf85-43b4-b2c4-5eb3a5800be9" />
+
+
 | 구분 | 주소 |
 |---|---|
 | Frontend | https://cosmic-clafoutis-8894bf.netlify.app |
@@ -108,7 +112,7 @@ gantt
 | 단계 | 담당 | 완료 기준 |
 |---|---|---|
 | 요구사항·MVP | 팀 전체 | 필수/선택/제외 범위 및 역할 확정 |
-| 데이터 정제 | 류효정 | 원본 보존, 정제 데이터와 출처 검증 |
+| 데이터 정제 | 류효정 | 데이터 정제, 태그 생성, 추천 로직 구성 |
 | FE 개발 | 류효정, 오성식 | 주요 화면·모바일 UI·API 연동 동작 |
 | BE 개발 | 채원형 | API·DB·OpenAI 연동 및 예외 처리 |
 | 통합·배포 | 팀 전체 | CI, 배포 URL, 핵심 사용자 흐름 검증 |
@@ -121,7 +125,8 @@ start_camp_16_6/
 │  └─ src/
 │     ├─ api/             # 중앙 API 클라이언트
 │     ├─ components/      # 공통 UI
-│     └─ views/           # 라우트 화면
+│     └─ views/           # 라우트 화면<img width="1559" height="1010" alt="KakaoTalk_20260719_172515902_01" src="https://github.com/user-attachments/assets/9760a92b-823a-43a6-bbd9-ce7f854a5647" />
+
 ├─ backend/
 │  ├─ app/
 │  │  ├─ api/             # FastAPI 라우터
